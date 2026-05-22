@@ -215,15 +215,15 @@ function PublicFormContent() {
   if (!form) return null
 
   return (
-    <div className={`flex flex-col justify-center py-8 px-4 sm:px-6 lg:px-8 ${pageBgClass}`}>
+    <div className={`flex flex-col justify-center py-4 px-4 sm:px-6 lg:px-8 ${pageBgClass}`}>
       <Card className={cardClass}>
         {(form.name || form.description) && (
-          <CardHeader className={`space-y-1.5 pb-6 text-center ${isTransparent ? 'p-0 mb-4' : ''}`}>
-            <CardTitle className={`text-2xl font-bold tracking-tight ${isDark ? 'text-white' : 'text-slate-900'}`}>
+          <CardHeader className={`space-y-1.5 pb-4 text-center ${isTransparent ? 'p-0 mb-4' : ''}`}>
+            <CardTitle className={`text-lg md:text-2xl font-bold tracking-tight ${isDark ? 'text-white' : 'text-slate-900'}`}>
               {form.name}
             </CardTitle>
             {form.description && (
-              <CardDescription className={isDark ? 'text-slate-400' : 'text-slate-500'}>
+              <CardDescription className={`text-sm md:text-base ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
                 {form.description}
               </CardDescription>
             )}
