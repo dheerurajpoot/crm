@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useAuth } from '@/lib/auth-context'
-import { getLeads, getFormTemplates } from '@/lib/firestore'
+import { getLeads, getFormTemplates, getTeamMembers } from '@/lib/firestore'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import Link from 'next/link'
@@ -34,31 +34,63 @@ export default function DashboardHome() {
   const [chartData, setChartData] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
 
+  const getSafeDate = (value: any): Date => {
+    if (!value) return new Date()
+    if (value instanceof Date) return value
+    if (typeof value.toDate === 'function') return value.toDate()
+    if (value.seconds !== undefined) return new Date(value.seconds * 1000)
+    const parsed = new Date(value)
+    return isNaN(parsed.getTime()) ? new Date() : parsed
+  }
+
   useEffect(() => {
     const loadData = async () => {
       if (!userData) return
 
       try {
-        const leads = await getLeads(userData.organizationId, [])
-        const forms = await getFormTemplates(userData.organizationId)
+        const [leads, forms, teamMembers] = await Promise.all([
+          getLeads(userData.organizationId, []),
+          getFormTemplates(userData.organizationId),
+          getTeamMembers(userData.organizationId).catch(() => []),
+        ])
 
         const newLeadsCount = leads.filter(
           (lead) => lead.status === 'new'
         ).length
 
-        // Create mock chart data for last 7 days
-        const chartData = Array.from({ length: 7 }, (_, i) => ({
-          day: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'][i],
-          leads: Math.floor(Math.random() * 10) + leads.length / 7,
+        // Create real chart data for last 7 days
+        const daysOfWeek = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+        const last7Days = Array.from({ length: 7 }, (_, i) => {
+          const d = new Date()
+          d.setDate(d.getDate() - (6 - i))
+          return {
+            dateStr: d.toDateString(),
+            dayLabel: daysOfWeek[d.getDay()],
+            count: 0
+          }
+        })
+
+        leads.forEach((lead) => {
+          const leadDate = getSafeDate(lead.createdAt)
+          const leadDateStr = leadDate.toDateString()
+          const chartDay = last7Days.find((item) => item.dateStr === leadDateStr)
+          if (chartDay) {
+            chartDay.count++
+          }
+        })
+
+        const realChartData = last7Days.map((item) => ({
+          day: item.dayLabel,
+          leads: item.count,
         }))
 
         setStats({
           totalLeads: leads.length,
           totalForms: forms.length,
           newLeads: newLeadsCount,
-          activeTeam: 1,
+          activeTeam: teamMembers.length || 1,
         })
-        setChartData(chartData)
+        setChartData(realChartData)
       } catch (error) {
         console.error('[v0] Error loading dashboard data:', error)
       } finally {
@@ -85,98 +117,103 @@ export default function DashboardHome() {
       <div className="p-4 md:p-8 space-y-6 mb-20 md:mb-0">
         {/* Header */}
         <div>
-          <h1 className="text-3xl font-bold text-foreground">Welcome back, {userData?.displayName?.split(' ')[0]}</h1>
-          <p className="text-muted-foreground mt-2">Here&apos;s your CRM overview</p>
+          <h1 className="text-2xl sm:text-3xl font-bold text-foreground">
+            Welcome back, {userData?.displayName?.split(' ')[0]}
+          </h1>
+          <p className="text-muted-foreground mt-1 text-sm">Here&apos;s your CRM overview</p>
         </div>
 
         {/* Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           <Card className="border-border bg-card hover:border-primary/50 transition-colors">
-            <CardHeader className="pb-3">
+            <CardHeader className="pb-2 p-4">
               <div className="flex items-center justify-between">
-                <CardTitle className="text-sm font-medium text-muted-foreground">Total Leads</CardTitle>
-                <FileText className="w-5 h-5 text-primary" />
+                <CardTitle className="text-xs font-semibold text-muted-foreground">Total Leads</CardTitle>
+                <FileText className="w-4 h-4 text-primary" />
               </div>
             </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold text-foreground">{stats.totalLeads}</div>
-              <p className="text-xs text-muted-foreground mt-2">All time leads collected</p>
+            <CardContent className="px-4 pb-4">
+              <div className="text-2xl sm:text-3xl font-bold text-foreground">{stats.totalLeads}</div>
+              <p className="text-[10px] text-muted-foreground mt-1">All time leads</p>
             </CardContent>
           </Card>
 
           <Card className="border-border bg-card hover:border-accent/50 transition-colors">
-            <CardHeader className="pb-3">
+            <CardHeader className="pb-2 p-4">
               <div className="flex items-center justify-between">
-                <CardTitle className="text-sm font-medium text-muted-foreground">New Leads</CardTitle>
-                <TrendingUp className="w-5 h-5 text-accent" />
+                <CardTitle className="text-xs font-semibold text-muted-foreground">New Leads</CardTitle>
+                <TrendingUp className="w-4 h-4 text-accent" />
               </div>
             </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold text-foreground">{stats.newLeads}</div>
-              <p className="text-xs text-muted-foreground mt-2">Awaiting follow up</p>
+            <CardContent className="px-4 pb-4">
+              <div className="text-2xl sm:text-3xl font-bold text-foreground">{stats.newLeads}</div>
+              <p className="text-[10px] text-muted-foreground mt-1">Awaiting follow up</p>
             </CardContent>
           </Card>
 
           <Card className="border-border bg-card hover:border-secondary/50 transition-colors">
-            <CardHeader className="pb-3">
+            <CardHeader className="pb-2 p-4">
               <div className="flex items-center justify-between">
-                <CardTitle className="text-sm font-medium text-muted-foreground">Active Forms</CardTitle>
-                <Activity className="w-5 h-5 text-secondary" />
+                <CardTitle className="text-xs font-semibold text-muted-foreground">Active Forms</CardTitle>
+                <Activity className="w-4 h-4 text-secondary" />
               </div>
             </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold text-foreground">{stats.totalForms}</div>
-              <p className="text-xs text-muted-foreground mt-2">Lead collection forms</p>
+            <CardContent className="px-4 pb-4">
+              <div className="text-2xl sm:text-3xl font-bold text-foreground">{stats.totalForms}</div>
+              <p className="text-[10px] text-muted-foreground mt-1">Collection forms</p>
             </CardContent>
           </Card>
 
           <Card className="border-border bg-card hover:border-primary/50 transition-colors">
-            <CardHeader className="pb-3">
+            <CardHeader className="pb-2 p-4">
               <div className="flex items-center justify-between">
-                <CardTitle className="text-sm font-medium text-muted-foreground">Team Members</CardTitle>
-                <Users className="w-5 h-5 text-primary" />
+                <CardTitle className="text-xs font-semibold text-muted-foreground">Team Members</CardTitle>
+                <Users className="w-4 h-4 text-primary" />
               </div>
             </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold text-foreground">{stats.activeTeam}</div>
-              <p className="text-xs text-muted-foreground mt-2">Active users</p>
+            <CardContent className="px-4 pb-4">
+              <div className="text-2xl sm:text-3xl font-bold text-foreground">{stats.activeTeam}</div>
+              <p className="text-[10px] text-muted-foreground mt-1">Active users</p>
             </CardContent>
           </Card>
         </div>
 
         {/* Chart */}
         <Card className="border-border bg-card">
-          <CardHeader>
-            <CardTitle>Lead Collection Trend</CardTitle>
-            <CardDescription>Leads collected over the last 7 days</CardDescription>
+          <CardHeader className="p-4 sm:p-6 pb-2">
+            <CardTitle className="text-base sm:text-lg">Lead Collection Trend</CardTitle>
+            <CardDescription className="text-xs">Leads collected over the last 7 days</CardDescription>
           </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={chartData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-                <XAxis dataKey="day" stroke="#9CA3AF" />
-                <YAxis stroke="#9CA3AF" />
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: '#1F2937',
-                    border: '1px solid #374151',
-                    borderRadius: '8px',
-                  }}
-                  cursor={{ fill: '#60A5FA20' }}
-                />
-                <Bar dataKey="leads" fill="#3B82F6" radius={[8, 8, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
+          <CardContent className="p-2 sm:p-6 pt-0">
+            <div className="w-full h-[240px] sm:h-[300px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+                  <XAxis dataKey="day" stroke="#9CA3AF" fontSize={11} />
+                  <YAxis stroke="#9CA3AF" fontSize={11} />
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: '#1F2937',
+                      border: '1px solid #374151',
+                      borderRadius: '8px',
+                      fontSize: '12px'
+                    }}
+                    cursor={{ fill: '#60A5FA20' }}
+                  />
+                  <Bar dataKey="leads" fill="#3B82F6" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
           </CardContent>
         </Card>
 
         {/* Quick Actions */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <Card className="border-border bg-card">
-            <CardHeader>
-              <CardTitle className="text-lg">Quick Actions</CardTitle>
+            <CardHeader className="p-4 sm:p-6 pb-3">
+              <CardTitle className="text-base sm:text-lg">Quick Actions</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-3">
+            <CardContent className="p-4 sm:p-6 pt-0 space-y-3">
               <Link href="/dashboard/leads/new">
                 <Button className="w-full justify-start gap-2 bg-primary hover:bg-primary/90 text-primary-foreground">
                   <FileText className="w-5 h-5" />
@@ -193,10 +230,10 @@ export default function DashboardHome() {
           </Card>
 
           <Card className="border-border bg-card">
-            <CardHeader>
-              <CardTitle className="text-lg">Get Started</CardTitle>
+            <CardHeader className="p-4 sm:p-6 pb-3">
+              <CardTitle className="text-base sm:text-lg">Get Started</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-3">
+            <CardContent className="p-4 sm:p-6 pt-0 space-y-3">
               <Link href="/dashboard/forms">
                 <Button variant="outline" className="w-full justify-start gap-2 border-border">
                   <Menu className="w-5 h-5" />

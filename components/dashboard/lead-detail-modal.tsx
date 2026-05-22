@@ -74,7 +74,7 @@ export default function LeadDetailModal({
   }
 
   const handleMarkAsDone = async () => {
-    if (!userData || !hasPermission(Permission.EDIT)) return
+    if (!userData) return
 
     setSaving(true)
     try {
@@ -158,7 +158,7 @@ export default function LeadDetailModal({
           </div>
 
           <div className="flex items-center gap-2 self-end sm:self-center">
-            {editedLead.status !== 'converted' && hasPermission(Permission.EDIT) && (
+            {editedLead.status !== 'converted' && (
               <Button
                 onClick={handleMarkAsDone}
                 disabled={saving}

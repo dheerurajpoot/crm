@@ -140,54 +140,6 @@ export default function FormsPage() {
             </CardContent>
           </Card>
         )}
-
-        {/* Form Templates */}
-        <Card className="border-border bg-card">
-          <CardHeader>
-            <CardTitle>Form Templates</CardTitle>
-            <CardDescription>Start with pre-built templates for common use cases</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {[
-                {
-                  name: 'Basic Loan Inquiry',
-                  fields: 5,
-                  description: 'Name, Phone, Email, City, Loan Amount',
-                },
-                {
-                  name: 'Lead Capture',
-                  fields: 4,
-                  description: 'Name, Email, Phone, Message',
-                },
-                {
-                  name: 'Product Interest',
-                  fields: 6,
-                  description: 'Full details for product inquiries',
-                },
-                {
-                  name: 'Appointment Booking',
-                  fields: 5,
-                  description: 'Name, Phone, Preferred Date & Time',
-                },
-              ].map((template, idx) => (
-                <div
-                  key={idx}
-                  className="p-4 rounded-lg border border-border/50 hover:border-primary/50 transition-colors cursor-pointer group"
-                >
-                  <h4 className="font-medium text-foreground mb-1">{template.name}</h4>
-                  <p className="text-xs text-muted-foreground mb-3">{template.description}</p>
-                  <Button
-                    size="sm"
-                    className="w-full bg-primary hover:bg-primary/90 text-primary-foreground"
-                  >
-                    Use Template
-                  </Button>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
       </div>
     </div>
   )

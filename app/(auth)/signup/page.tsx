@@ -291,7 +291,7 @@ function SignupForm() {
 				</Card>
 
 				<p className='mt-8 text-center text-xs text-muted-foreground'>
-					© 2024 LeadFlow CRM. All rights reserved.
+					© 2026 LeadFlow CRM. All rights reserved.
 				</p>
 			</div>
 		</div>

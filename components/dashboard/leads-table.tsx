@@ -42,7 +42,7 @@ export default function LeadsTable({ leads, forms, onUpdate }: LeadsTableProps) 
   }
 
   const handleQuickDoneInTable = async (lead: Lead & { id: string }) => {
-    if (!userData || !hasPermission(Permission.EDIT)) return
+    if (!userData) return
 
     try {
       const updated = {
@@ -227,7 +227,7 @@ export default function LeadsTable({ leads, forms, onUpdate }: LeadsTableProps) 
                       <span className="sm:hidden font-semibold text-muted-foreground">Actions</span>
                       <div className="flex gap-1.5 justify-end items-center">
                         {/* Small Quick Mark as Done */}
-                        {lead.status !== 'converted' && hasPermission(Permission.EDIT) && (
+                        {lead.status !== 'converted' && (
                           <Button
                             variant="ghost"
                             size="sm"
