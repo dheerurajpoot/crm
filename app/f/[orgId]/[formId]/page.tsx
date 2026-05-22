@@ -292,11 +292,11 @@ function PublicFormContent() {
                             required={field.required}
                             rows={4}
                             style={focusStyle}
-                            className={`w-full px-3 py-2 text-sm bg-transparent border outline-none transition-all resize-none ${roundedClass} ${
+                            className={`w-full px-3 py-2 text-sm border outline-none transition-all resize-none ${roundedClass} ${
                               isDark
-                                ? 'bg-slate-900/30 border-slate-800 text-white placeholder-slate-600 focus:bg-slate-900/50'
-                                : 'bg-slate-50 border-slate-200 text-slate-900 placeholder-slate-400 focus:bg-white'
-                            } ${hasError ? 'border-red-500 focus:border-red-500 focus:ring-0' : ''}`}
+                                ? '!bg-slate-900/30 !border-slate-800 !text-white placeholder:!text-slate-500 focus:!bg-slate-900/50'
+                                : '!bg-white !border-slate-200 !text-slate-900 placeholder:!text-slate-400 focus:!bg-white focus:!border-slate-300'
+                            } ${hasError ? '!border-red-500 focus:!border-red-500' : ''}`}
                           />
                         ) : field.type === 'select' ? (
                           <select
@@ -308,11 +308,11 @@ function PublicFormContent() {
                             onBlur={() => setFocusedField(null)}
                             required={field.required}
                             style={focusStyle}
-                            className={`w-full h-10 px-3 py-2 text-sm bg-transparent border outline-none transition-all cursor-pointer ${roundedClass} ${
+                            className={`w-full h-10 px-3 py-2 text-sm border outline-none transition-all cursor-pointer ${roundedClass} ${
                               isDark
-                                ? 'bg-slate-900/30 border-slate-800 text-white focus:bg-slate-900/50'
-                                : 'bg-slate-50 border-slate-200 text-slate-900 focus:bg-white'
-                            } ${hasError ? 'border-red-500 focus:border-red-500 focus:ring-0' : ''}`}
+                                ? '!bg-slate-900/30 !border-slate-800 !text-white focus:!bg-slate-900/50'
+                                : '!bg-white !border-slate-200 !text-slate-900 focus:!bg-white focus:!border-slate-300'
+                            } ${hasError ? '!border-red-500 focus:!border-red-500' : ''}`}
                           >
                             <option value="" disabled className={isDark ? 'bg-slate-950 text-slate-500' : 'bg-white text-slate-400'}>
                               {field.placeholder || 'Select an option'}
@@ -324,7 +324,7 @@ function PublicFormContent() {
                             ))}
                           </select>
                         ) : (
-                          <Input
+                          <input
                             id={field.id}
                             name={field.name}
                             type={
@@ -345,11 +345,11 @@ function PublicFormContent() {
                             placeholder={field.placeholder || ''}
                             required={field.required}
                             style={focusStyle}
-                            className={`h-10 px-3 py-2 text-sm bg-transparent border outline-none transition-all ${roundedClass} ${
+                            className={`w-full h-10 px-3 py-2 text-sm border outline-none transition-all ${roundedClass} ${
                               isDark
-                                ? 'bg-slate-900/30 border-slate-800 text-white focus:bg-slate-900/50'
-                                : 'bg-slate-50 border-slate-200 text-slate-900 focus:bg-white'
-                            } ${hasError ? 'border-red-500 focus:border-red-500 focus:ring-0' : ''}`}
+                                ? '!bg-slate-900/30 !border-slate-800 !text-white placeholder:!text-slate-500 focus:!bg-slate-900/50'
+                                : '!bg-white !border-slate-200 !text-slate-900 placeholder:!text-slate-400 focus:!bg-white focus:!border-slate-300'
+                            } ${hasError ? '!border-red-500 focus:!border-red-500' : ''}`}
                           />
                         )}
 
@@ -380,7 +380,7 @@ function PublicFormContent() {
                       Submitting...
                     </>
                   ) : (
-                    'Submit'
+                    'Submit Application'
                   )}
                 </button>
               </div>
@@ -390,7 +390,7 @@ function PublicFormContent() {
       </Card>
 
       {/* Subtle branding watermark */}
-      <div className="text-center mt-6">
+      {/* <div className="text-center mt-6">
         <a 
           href="/" 
           target="_blank" 
@@ -402,7 +402,7 @@ function PublicFormContent() {
           <span>Powered by</span>
           <span className="font-bold text-primary" style={{ color: accent }}>LeadFlow CRM</span>
         </a>
-      </div>
+      </div> */}
     </div>
   )
 }
