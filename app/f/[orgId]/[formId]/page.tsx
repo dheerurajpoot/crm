@@ -112,15 +112,19 @@ function PublicFormContent() {
       if (phoneField) {
         const phoneNumber = values[phoneField.name]?.trim()
         if (phoneNumber) {
-          const existingLeads = await getLeads(orgId, [
-            where('formId', '==', form.id),
-            where(`data.${phoneField.name}`, '==', phoneNumber),
-          ])
+          try {
+            const existingLeads = await getLeads(orgId, [
+              where('formId', '==', form.id),
+              where(`data.${phoneField.name}`, '==', phoneNumber),
+            ])
 
-          if (existingLeads.length > 0) {
-            setError('You have already submitted a response for this form.')
-            setSubmitting(false)
-            return
+            if (existingLeads.length > 0) {
+              setError('You have already submitted a response for this form.')
+              setSubmitting(false)
+              return
+            }
+          } catch (err) {
+            console.warn('[Public Form] Skipping duplicate check due to permissions:', err)
           }
         }
       }
