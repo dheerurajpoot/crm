@@ -52,6 +52,43 @@ export async function updateUser(
 }
 
 // ========== Organizations ==========
+export async function deleteOrganization(orgId: string) {
+	const batch = writeBatch(db);
+
+	// 1. Get all members to clean up their user documents
+	const members = await getTeamMembers(orgId);
+	for (const member of members) {
+		if (member.userId && !member.userId.includes("@")) {
+			const userRef = doc(db, "users", member.userId);
+			batch.update(userRef, {
+				organizationId: "",
+				role: UserRole.VIEWER,
+				permissions: [],
+				updatedAt: Timestamp.now(),
+			});
+		}
+	}
+
+	// 2. Delete all members records
+	for (const member of members) {
+		const memberRef = doc(
+			db,
+			"organizations",
+			orgId,
+			"members",
+			member.userId,
+		);
+		batch.delete(memberRef);
+	}
+
+	// 3. Delete the organization document itself
+	const orgRef = doc(db, "organizations", orgId);
+	batch.delete(orgRef);
+
+	// 4. Commit everything
+	await batch.commit();
+}
+
 export async function createOrganization(
 	orgData: Omit<Organization, "id" | "createdAt" | "updatedAt">,
 ) {
@@ -141,23 +178,52 @@ export async function updateTeamMemberPermissions(
 }
 
 export async function removeTeamMember(organizationId: string, userId: string) {
-	// 1. Remove organization details from user document first while admin credentials are valid for that organization
+	// 1. Delete the member record from the organization's member list FIRST
+	// This is the absolute critical path to revoke their dashboard access.
+	const memberRef = doc(
+		db,
+		"organizations",
+		organizationId,
+		"members",
+		userId,
+	);
+	await deleteDoc(memberRef);
+
+	// 2. Attempt to clean up the user's personal profile document
+	// We do this separately because Firestore rules for the 'users' collection
+	// can be more restrictive than the organization's member list.
 	if (userId && !userId.includes("@")) {
 		try {
-			await updateDoc(doc(db, "users", userId), {
+			const userRef = doc(db, "users", userId);
+			await updateDoc(userRef, {
 				organizationId: "",
-				role: "viewer",
+				role: UserRole.VIEWER,
 				permissions: [],
+				updatedAt: Timestamp.now(),
 			});
 		} catch (e) {
-			console.warn("[removeTeamMember] Failed to clear organization from user document:", e);
+			console.warn(
+				"[removeTeamMember] Note: Organization membership was revoked, but user profile cleanup failed. This usually happens if security rules prevent an admin from editing another user's private document directly.",
+				e,
+			);
+			// We do NOT throw here because the primary goal (revoking access) was successful.
 		}
 	}
+}
 
-	// 2. Delete the member record from the organization's member list
-	await deleteDoc(
-		doc(db, "organizations", organizationId, "members", userId),
+export async function isMemberOfOrganization(
+	organizationId: string,
+	userId: string,
+) {
+	const memberRef = doc(
+		db,
+		"organizations",
+		organizationId,
+		"members",
+		userId,
 	);
+	const docSnap = await getDoc(memberRef);
+	return docSnap.exists();
 }
 
 // ========== Form Templates ==========
@@ -360,7 +426,7 @@ export async function getLeadActivities(
 		const toMillis = (val: any) => {
 			if (!val) return 0;
 			if (val instanceof Date) return val.getTime();
-			if (typeof val.toMillis === 'function') return val.toMillis();
+			if (typeof val.toMillis === "function") return val.toMillis();
 			if (val.seconds !== undefined) return val.seconds * 1000;
 			const parsed = new Date(val);
 			return isNaN(parsed.getTime()) ? 0 : parsed.getTime();

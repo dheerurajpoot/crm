@@ -1,278 +1,346 @@
-'use client'
+"use client";
 
-import { useState, useEffect } from 'react'
-import { useAuth } from '@/lib/auth-context'
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Shield, Bell, Lock, Database, Loader2 } from 'lucide-react'
-import { getOrganization, updateOrganization } from '@/lib/firestore'
+import { useState, useEffect } from "react";
+import { useAuth } from "@/lib/auth-context";
+import {
+	Card,
+	CardContent,
+	CardHeader,
+	CardTitle,
+	CardDescription,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+	Shield,
+	Bell,
+	Lock,
+	Database,
+	Loader2,
+	Trash2,
+	AlertTriangle,
+} from "lucide-react";
+import {
+	getOrganization,
+	updateOrganization,
+	deleteOrganization,
+} from "@/lib/firestore";
 
 export default function SettingsPage() {
-  const { userData, isAdmin } = useAuth()
-  const [orgName, setOrgName] = useState('')
-  const [loadingOrg, setLoadingOrg] = useState(false)
-  const [updatingOrg, setUpdatingOrg] = useState(false)
-  const [orgMessage, setOrgMessage] = useState('')
-  const [orgError, setOrgError] = useState('')
+	const { userData, isAdmin, resetPassword, logout } = useAuth();
+	const [orgName, setOrgName] = useState("");
+	const [loadingOrg, setLoadingOrg] = useState(false);
+	const [updatingOrg, setUpdatingOrg] = useState(false);
+	const [orgMessage, setOrgMessage] = useState("");
+	const [orgError, setOrgError] = useState("");
+	const [resetting, setResetting] = useState(false);
+	const [deletingOrg, setDeletingOrg] = useState(false);
+	const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
-  useEffect(() => {
-    const loadOrgName = async () => {
-      if (!userData?.organizationId) return
-      setLoadingOrg(true)
-      try {
-        const org = await getOrganization(userData.organizationId)
-        if (org) {
-          setOrgName(org.name)
-        }
-      } catch (err) {
-        console.error('[Settings] Error fetching organization:', err)
-      } finally {
-        setLoadingOrg(false)
-      }
-    }
-    loadOrgName()
-  }, [userData?.organizationId])
+	useEffect(() => {
+		const loadOrgName = async () => {
+			if (!userData?.organizationId) return;
+			setLoadingOrg(true);
+			try {
+				const org = await getOrganization(userData.organizationId);
+				if (org) {
+					setOrgName(org.name);
+				}
+			} catch (err) {
+				console.error("[Settings] Error fetching organization:", err);
+			} finally {
+				setLoadingOrg(false);
+			}
+		};
+		loadOrgName();
+	}, [userData?.organizationId]);
 
-  const handleUpdateOrg = async () => {
-    if (!userData?.organizationId || !orgName.trim()) return
-    setUpdatingOrg(true)
-    setOrgMessage('')
-    setOrgError('')
-    try {
-      await updateOrganization(userData.organizationId, { name: orgName })
-      setOrgMessage('Organization name updated successfully!')
-    } catch (err: any) {
-      setOrgError(err.message || 'Failed to update organization name')
-    } finally {
-      setUpdatingOrg(false)
-    }
-  }
+	const handleUpdateOrg = async () => {
+		if (!userData?.organizationId || !orgName.trim()) return;
+		setUpdatingOrg(true);
+		setOrgMessage("");
+		setOrgError("");
+		try {
+			await updateOrganization(userData.organizationId, {
+				name: orgName,
+			});
+			setOrgMessage("Organization name updated successfully!");
+		} catch (err: any) {
+			setOrgError(err.message || "Failed to update organization name");
+		} finally {
+			setUpdatingOrg(false);
+		}
+	};
 
-  if (!isAdmin) {
-    return (
-      <div className="flex items-center justify-center h-screen">
-        <Card className="border-border bg-card max-w-md w-full mx-4">
-          <CardContent className="py-12">
-            <div className="text-center">
-              <Shield className="w-12 h-12 text-muted-foreground mx-auto mb-4 opacity-50" />
-              <h3 className="text-lg font-medium text-foreground mb-2">Admin Access Required</h3>
-              <p className="text-muted-foreground">
-                Only administrators can access settings
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    )
-  }
+	const handleResetPassword = async () => {
+		if (!userData?.email) return;
+		setResetting(true);
+		setOrgMessage("");
+		setOrgError("");
+		try {
+			await resetPassword(userData.email);
+			setOrgMessage("Password reset link sent to your email!");
+		} catch (err: any) {
+			setOrgError(err.message || "Failed to send reset link");
+		} finally {
+			setResetting(false);
+		}
+	};
 
-  return (
-    <div className="flex-1 overflow-auto">
-      <div className="p-4 md:p-8 space-y-6 mb-20 md:mb-0 max-w-4xl">
-        {/* Header */}
-        <div>
-          <h1 className="text-3xl font-bold text-foreground">Settings</h1>
-          <p className="text-muted-foreground mt-2">Manage your organization and preferences</p>
-        </div>
+	const handleDeleteOrganization = async () => {
+		if (!userData?.organizationId || !isAdmin) return;
+		setDeletingOrg(true);
+		setOrgError("");
+		try {
+			await deleteOrganization(userData.organizationId);
+			await logout();
+			window.location.href = "/login";
+		} catch (err: any) {
+			setOrgError(err.message || "Failed to delete organization");
+			setDeletingOrg(false);
+			setShowDeleteConfirm(false);
+		}
+	};
 
-        {/* Account Settings */}
-        <Card className="border-border bg-card">
-          <CardHeader>
-            <CardTitle>Account Settings</CardTitle>
-            <CardDescription>Your personal account information</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div>
-              <label className="text-sm font-medium text-foreground block mb-2">Display Name</label>
-              <Input
-                type="text"
-                value={userData?.displayName || ''}
-                disabled
-                className="bg-input border-border disabled:opacity-50"
-              />
-            </div>
+	if (!isAdmin) {
+		return (
+			<div className='flex items-center justify-center h-screen'>
+				<Card className='border-border bg-card max-w-md w-full mx-4'>
+					<CardContent className='py-12'>
+						<div className='text-center'>
+							<Shield className='w-12 h-12 text-muted-foreground mx-auto mb-4 opacity-50' />
+							<h3 className='text-lg font-medium text-foreground mb-2'>
+								Admin Access Required
+							</h3>
+							<p className='text-muted-foreground'>
+								Only administrators can access settings
+							</p>
+						</div>
+					</CardContent>
+				</Card>
+			</div>
+		);
+	}
 
-            <div>
-              <label className="text-sm font-medium text-foreground block mb-2">Email</label>
-              <Input
-                type="email"
-                value={userData?.email || ''}
-                disabled
-                className="bg-input border-border disabled:opacity-50"
-              />
-            </div>
+	return (
+		<div className='flex-1 overflow-auto'>
+			<div className='p-4 md:p-8 space-y-6 mb-20 md:mb-0 max-w-4xl'>
+				{/* Header */}
+				<div>
+					<h1 className='text-3xl font-bold text-foreground'>
+						Settings
+					</h1>
+					<p className='text-muted-foreground mt-2'>
+						Manage your organization and preferences
+					</p>
+				</div>
 
-            <div>
-              <label className="text-sm font-medium text-foreground block mb-2">Role</label>
-              <Input
-                type="text"
-                value={userData?.role ? userData.role.charAt(0).toUpperCase() + userData.role.slice(1) : ''}
-                disabled
-                className="bg-input border-border disabled:opacity-50"
-              />
-            </div>
-          </CardContent>
-        </Card>
+				{/* Account Settings */}
+				<Card className='border-border bg-card'>
+					<CardHeader>
+						<CardTitle>Account Settings</CardTitle>
+						<CardDescription>
+							Your personal account information
+						</CardDescription>
+					</CardHeader>
+					<CardContent className='space-y-4'>
+						<div>
+							<label className='text-sm font-medium text-foreground block mb-2'>
+								Display Name
+							</label>
+							<Input
+								type='text'
+								value={userData?.displayName || ""}
+								disabled
+								className='bg-input border-border disabled:opacity-50'
+							/>
+						</div>
 
-        {/* Security Settings */}
-        <Card className="border-border bg-card">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Lock className="w-5 h-5 text-primary" />
-              Security
-            </CardTitle>
-            <CardDescription>Manage your security settings</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="p-4 rounded-lg bg-muted/20 border border-border/50">
-              <h4 className="font-medium text-foreground mb-2">Two-Factor Authentication</h4>
-              <p className="text-sm text-muted-foreground mb-4">
-                Add an extra layer of security to your account
-              </p>
-              <Button variant="outline" className="border-border text-foreground hover:bg-muted">
-                Enable 2FA
-              </Button>
-            </div>
+						<div>
+							<label className='text-sm font-medium text-foreground block mb-2'>
+								Email
+							</label>
+							<Input
+								type='email'
+								value={userData?.email || ""}
+								disabled
+								className='bg-input border-border disabled:opacity-50'
+							/>
+						</div>
 
-            <div className="p-4 rounded-lg bg-muted/20 border border-border/50">
-              <h4 className="font-medium text-foreground mb-2">Password</h4>
-              <p className="text-sm text-muted-foreground mb-4">
-                Change your account password
-              </p>
-              <Button className="bg-primary hover:bg-primary/90 text-primary-foreground">
-                Change Password
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+						<div>
+							<label className='text-sm font-medium text-foreground block mb-2'>
+								Role
+							</label>
+							<Input
+								type='text'
+								value={
+									userData?.role
+										? userData.role
+												.charAt(0)
+												.toUpperCase() +
+											userData.role.slice(1)
+										: ""
+								}
+								disabled
+								className='bg-input border-border disabled:opacity-50'
+							/>
+						</div>
+					</CardContent>
+				</Card>
 
-        {/* Organization Settings */}
-        <Card className="border-border bg-card">
-          <CardHeader>
-            <CardTitle>Organization Settings</CardTitle>
-            <CardDescription>Manage your organization preferences</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div>
-              <label className="text-sm font-medium text-foreground block mb-2">Organization ID</label>
-              <Input
-                type="text"
-                value={userData?.organizationId || ''}
-                disabled
-                className="bg-input border-border disabled:opacity-50 font-mono text-xs"
-              />
-            </div>
+				{/* Security Settings */}
+				<Card className='border-border bg-card'>
+					<CardHeader>
+						<CardTitle className='flex items-center gap-2'>
+							<Lock className='w-5 h-5 text-primary' />
+							Security
+						</CardTitle>
+						<CardDescription>
+							Manage your account security
+						</CardDescription>
+					</CardHeader>
+					<CardContent className='space-y-4'>
+						<div className='p-4 rounded-lg bg-muted/20 border border-border/50'>
+							<h4 className='font-medium text-foreground mb-2'>
+								Password Reset
+							</h4>
+							<p className='text-sm text-muted-foreground mb-4'>
+								Receive a password reset link via email to
+								change your password.
+							</p>
+							<Button
+								onClick={handleResetPassword}
+								disabled={resetting}
+								className='bg-primary hover:bg-primary/90 text-primary-foreground'>
+								{resetting ? (
+									<>
+										<Loader2 className='w-4 h-4 mr-2 animate-spin' />
+										Sending Link...
+									</>
+								) : (
+									"Send Reset Link"
+								)}
+							</Button>
+						</div>
+					</CardContent>
+				</Card>
 
-            <div>
-              <label className="text-sm font-medium text-foreground block mb-2">Organization Name</label>
-              <div className="flex gap-2">
-                <Input
-                  type="text"
-                  value={orgName}
-                  onChange={(e) => setOrgName(e.target.value)}
-                  placeholder="Organization Name"
-                  disabled={loadingOrg || updatingOrg}
-                  className="bg-input border-border"
-                />
-                <Button 
-                  onClick={handleUpdateOrg}
-                  disabled={loadingOrg || updatingOrg || !orgName.trim()}
-                  className="bg-primary hover:bg-primary/90 text-primary-foreground shrink-0"
-                >
-                  {updatingOrg ? (
-                    <>
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      Saving...
-                    </>
-                  ) : (
-                    'Save'
-                  )}
-                </Button>
-              </div>
-              {orgMessage && (
-                <p className="text-xs text-green-500 mt-1.5 font-medium">{orgMessage}</p>
-              )}
-              {orgError && (
-                <p className="text-xs text-red-500 mt-1.5 font-medium">{orgError}</p>
-              )}
-            </div>
+				{/* Organization Management */}
+				<Card className='border-border bg-card'>
+					<CardHeader>
+						<CardTitle>Organization Management</CardTitle>
+						<CardDescription>
+							Manage your organization details and lifecycle
+						</CardDescription>
+					</CardHeader>
+					<CardContent className='space-y-6'>
+						<div>
+							<label className='text-sm font-medium text-foreground block mb-2'>
+								Organization Name
+							</label>
+							<div className='flex gap-2'>
+								<Input
+									type='text'
+									value={orgName}
+									onChange={(e) => setOrgName(e.target.value)}
+									placeholder='Organization Name'
+									disabled={loadingOrg || updatingOrg}
+									className='bg-input border-border'
+								/>
+								<Button
+									onClick={handleUpdateOrg}
+									disabled={
+										loadingOrg ||
+										updatingOrg ||
+										!orgName.trim()
+									}
+									className='bg-primary hover:bg-primary/90 text-primary-foreground shrink-0'>
+									{updatingOrg ? (
+										<>
+											<Loader2 className='w-4 h-4 mr-2 animate-spin' />
+											Saving...
+										</>
+									) : (
+										"Save Name"
+									)}
+								</Button>
+							</div>
+						</div>
 
-            <div className="p-4 rounded-lg bg-muted/20 border border-border/50">
-              <h4 className="font-medium text-foreground mb-2">Data Retention</h4>
-              <p className="text-sm text-muted-foreground mb-4">
-                Automatically delete old leads after a specified period
-              </p>
-              <select className="w-full px-3 py-2 rounded-lg bg-input border border-border text-foreground">
-                <option>Never</option>
-                <option>After 30 days</option>
-                <option>After 90 days</option>
-                <option>After 1 year</option>
-              </select>
-            </div>
-          </CardContent>
-        </Card>
+						<div className='pt-6 border-t border-border'>
+							<div className='p-4 rounded-lg bg-red-500/5 border border-red-500/20'>
+								<div className='flex items-start gap-3'>
+									<AlertTriangle className='w-5 h-5 text-red-500 mt-0.5' />
+									<div className='space-y-1 flex-1'>
+										<h4 className='font-medium text-red-600'>
+											Danger Zone
+										</h4>
+										<p className='text-sm text-red-600/80'>
+											Deleting your organization will
+											permanently remove all data, leads,
+											and member access. This action
+											cannot be undone.
+										</p>
 
-        {/* Notifications */}
-        <Card className="border-border bg-card">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Bell className="w-5 h-5 text-accent" />
-              Notifications
-            </CardTitle>
-            <CardDescription>Configure how you receive notifications</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {[
-              { label: 'Email notifications for new leads', id: 'new_leads' },
-              { label: 'Daily summary emails', id: 'daily_summary' },
-              { label: 'Team activity updates', id: 'team_activity' },
-              { label: 'Form submission alerts', id: 'form_alerts' },
-            ].map((item) => (
-              <label key={item.id} className="flex items-center gap-3 cursor-pointer">
-                <input
-                  type="checkbox"
-                  defaultChecked
-                  className="w-4 h-4 rounded border-border"
-                />
-                <span className="text-foreground">{item.label}</span>
-              </label>
-            ))}
-          </CardContent>
-        </Card>
+										{!showDeleteConfirm ? (
+											<Button
+												variant='destructive'
+												onClick={() =>
+													setShowDeleteConfirm(true)
+												}
+												className='mt-4'>
+												<Trash2 className='w-4 h-4 mr-2' />
+												Delete Organization
+											</Button>
+										) : (
+											<div className='mt-4 p-4 bg-red-500/10 rounded-lg border border-red-500/20 space-y-4'>
+												<p className='text-sm font-bold text-red-600'>
+													Are you absolutely sure?
+													This action is permanent.
+												</p>
+												<div className='flex gap-3'>
+													<Button
+														variant='destructive'
+														disabled={deletingOrg}
+														onClick={
+															handleDeleteOrganization
+														}>
+														{deletingOrg
+															? "Deleting..."
+															: "Yes, Delete Everything"}
+													</Button>
+													<Button
+														variant='outline'
+														onClick={() =>
+															setShowDeleteConfirm(
+																false,
+															)
+														}
+														disabled={deletingOrg}>
+														Cancel
+													</Button>
+												</div>
+											</div>
+										)}
+									</div>
+								</div>
+							</div>
+						</div>
+					</CardContent>
+				</Card>
 
-        {/* Data & Export */}
-        <Card className="border-border bg-card">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Database className="w-5 h-5 text-secondary" />
-              Data & Export
-            </CardTitle>
-            <CardDescription>Manage your organization data</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <div className="p-4 rounded-lg bg-muted/20 border border-border/50">
-              <h4 className="font-medium text-foreground mb-2">Export All Data</h4>
-              <p className="text-sm text-muted-foreground mb-4">
-                Download all your leads and form data as Excel files
-              </p>
-              <Button variant="outline" className="border-border text-foreground hover:bg-muted">
-                Export Data
-              </Button>
-            </div>
-
-            <div className="p-4 rounded-lg bg-red-500/10 border border-red-500/20">
-              <h4 className="font-medium text-red-400 mb-2">Danger Zone</h4>
-              <p className="text-sm text-red-400/80 mb-4">
-                Delete all organization data. This action cannot be undone.
-              </p>
-              <Button variant="outline" className="border-red-500/50 text-red-400 hover:bg-red-500/10">
-                Delete Organization
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    </div>
-  )
+				{orgMessage && (
+					<div className='p-4 rounded-lg bg-green-500/10 border border-green-500/20 text-green-600 text-sm font-medium'>
+						{orgMessage}
+					</div>
+				)}
+				{orgError && (
+					<div className='p-4 rounded-lg bg-red-500/10 border border-red-500/20 text-red-600 text-sm font-medium'>
+						{orgError}
+					</div>
+				)}
+			</div>
+		</div>
+	);
 }

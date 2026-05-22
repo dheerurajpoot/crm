@@ -1,20 +1,42 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useAuth } from '@/lib/auth-context'
+import { getOrganization } from '@/lib/firestore'
 import { doc, updateDoc } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { User, Mail, Shield, CheckCircle, AlertCircle, Building } from 'lucide-react'
+import { User, Mail, Shield, CheckCircle, AlertCircle, Building, Key } from 'lucide-react'
 
 export default function ProfilePage() {
-  const { userData, setUserData } = useAuth()
+  const { userData, setUserData, resetPassword } = useAuth()
   const [displayName, setDisplayName] = useState(userData?.displayName || '')
+  const [orgDetails, setOrgDetails] = useState<{ name: string; createdAt: any } | null>(null)
   const [saving, setSaving] = useState(false)
+  const [resetting, setResetting] = useState(false)
   const [success, setSuccess] = useState('')
   const [error, setError] = useState('')
+
+  useEffect(() => {
+    const loadOrg = async () => {
+      if (userData?.organizationId) {
+        try {
+          const org = await getOrganization(userData.organizationId)
+          if (org) {
+            setOrgDetails({
+              name: org.name,
+              createdAt: org.createdAt
+            })
+          }
+        } catch (err) {
+          console.error('[Profile] Error loading org:', err)
+        }
+      }
+    }
+    loadOrg()
+  }, [userData?.organizationId])
 
   const handleUpdateProfile = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -45,6 +67,23 @@ export default function ProfilePage() {
       setError(err.message || 'Failed to update profile')
     } finally {
       setSaving(false)
+    }
+  }
+
+  const handleResetPassword = async () => {
+    if (!userData?.email) return
+    
+    setResetting(true)
+    setError('')
+    setSuccess('')
+
+    try {
+      await resetPassword(userData.email)
+      setSuccess('Password reset link sent to your email!')
+    } catch (err: any) {
+      setError(err.message || 'Failed to send reset link')
+    } finally {
+      setResetting(false)
     }
   }
 
@@ -85,14 +124,14 @@ export default function ProfilePage() {
               <User className="w-5 h-5 text-primary" />
               Account Details
             </CardTitle>
-            <CardDescription>Update your display name here</CardDescription>
+            <CardDescription>Update your display name and security here</CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-6">
             <form onSubmit={handleUpdateProfile} className="space-y-4">
               <div className="space-y-2">
                 <label className="text-sm font-medium text-foreground">Email Address</label>
                 <div className="relative">
-                  <Mail className="absolute left-3 top-3 h-4 h-4 text-muted-foreground" />
+                  <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                   <Input
                     type="email"
                     disabled
@@ -106,7 +145,7 @@ export default function ProfilePage() {
               <div className="space-y-2">
                 <label className="text-sm font-medium text-foreground">Full Name</label>
                 <div className="relative">
-                  <User className="absolute left-3 top-3 h-4 h-4 text-muted-foreground" />
+                  <User className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                   <Input
                     type="text"
                     required
@@ -126,6 +165,25 @@ export default function ProfilePage() {
                 {saving ? 'Saving...' : 'Update Name'}
               </Button>
             </form>
+
+            <div className="pt-6 border-t border-border">
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <h3 className="text-sm font-medium">Security</h3>
+                  <p className="text-xs text-muted-foreground">Reset your account password</p>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleResetPassword}
+                  disabled={resetting}
+                  className="flex items-center gap-2"
+                >
+                  <Key className="w-4 h-4" />
+                  {resetting ? 'Sending...' : 'Forget Password?'}
+                </Button>
+              </div>
+            </div>
           </CardContent>
         </Card>
 
@@ -154,7 +212,7 @@ export default function ProfilePage() {
                   <span className="text-xs font-semibold text-muted-foreground">Organization</span>
                 </div>
                 <span className="text-sm font-bold text-foreground truncate block">
-                  {userData.organizationId ? 'Connected to CRM' : 'No Organization'}
+                  {orgDetails?.name || (userData.organizationId ? 'Connected to CRM' : 'No Organization')}
                 </span>
               </div>
             </div>

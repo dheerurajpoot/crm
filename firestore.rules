@@ -1,18 +1,31 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+    
+    // Helper functions
+    function isOrgMember(orgId) {
+      return request.auth != null && 
+             orgId != null && 
+             orgId != "" &&
+             exists(/databases/$(database)/documents/organizations/$(orgId)/members/$(request.auth.uid));
+    }
+
+    function isOrgAdmin(orgId) {
+      return isOrgMember(orgId) && 
+             get(/databases/$(database)/documents/organizations/$(orgId)/members/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    function hasPermission(orgId, permission) {
+      return isOrgMember(orgId) && 
+             get(/databases/$(database)/documents/organizations/$(orgId)/members/$(request.auth.uid)).data.permissions.hasAny([permission]);
+    }
+
     // Users collection
     match /users/{uid} {
-      allow read: if request.auth != null && (
-        request.auth.uid == uid ||
-        (resource != null && 
-         exists(/databases/$(database)/documents/organizations/$(resource.data.organizationId)/members/$(request.auth.uid)))
-      );
+      allow read: if request.auth != null;
       allow write: if request.auth != null && (
         request.auth.uid == uid ||
-        (resource != null && 
-         exists(/databases/$(database)/documents/organizations/$(resource.data.organizationId)/members/$(request.auth.uid)) &&
-         get(/databases/$(database)/documents/organizations/$(resource.data.organizationId)/members/$(request.auth.uid)).data.role == 'admin')
+        (resource != null && resource.data.organizationId != null && isOrgAdmin(resource.data.organizationId))
       );
     }
 
@@ -25,56 +38,25 @@ service cloud.firestore {
       // Organization sub-collections
       match /members/{memberId} {
         allow read: if isOrgMember(orgId);
-        allow create: if request.auth != null && (
-          isOrgAdmin(orgId) || 
-          (memberId == request.auth.uid && 
-           get(/databases/$(database)/documents/users/$(request.auth.uid)).data.organizationId == orgId)
-        );
-        allow update: if isOrgAdmin(orgId);
-        allow delete: if request.auth != null && (
-          isOrgAdmin(orgId) || 
-          memberId == request.auth.token.email
-        );
+        allow write, delete: if isOrgAdmin(orgId) || (request.auth != null && memberId == request.auth.uid);
       }
 
       match /formTemplates/{formId} {
         allow read: if isOrgMember(orgId) || (resource != null && resource.data.isActive == true);
-        allow write: if isOrgAdmin(orgId) || isFormCreator(orgId, formId);
+        allow write: if isOrgAdmin(orgId) || (request.auth != null && resource != null && resource.data.createdById == request.auth.uid);
       }
 
       match /leads/{leadId} {
         allow read: if isOrgMember(orgId) && hasPermission(orgId, 'view');
-        allow create: if true; // allow public leads creation from embedded landing page forms
+        allow create: if true; // allow public leads creation
         allow update: if isOrgMember(orgId) && hasPermission(orgId, 'edit');
         allow delete: if isOrgMember(orgId) && hasPermission(orgId, 'delete');
       }
 
       match /activities/{activityId} {
         allow read: if isOrgMember(orgId);
-        allow write: if request.auth != null || request.resource.data.userId == 'public_form';
+        allow write: if request.auth != null || (request.resource != null && request.resource.data.userId == 'public_form');
       }
-    }
-
-    // Helper functions
-    function isOrgMember(orgId) {
-      return request.auth != null && 
-             exists(/databases/$(database)/documents/organizations/$(orgId)/members/$(request.auth.uid));
-    }
-
-    function isOrgAdmin(orgId) {
-      return request.auth != null && 
-             exists(/databases/$(database)/documents/organizations/$(orgId)/members/$(request.auth.uid)) &&
-             get(/databases/$(database)/documents/organizations/$(orgId)/members/$(request.auth.uid)).data.role == 'admin';
-    }
-
-    function hasPermission(orgId, permission) {
-      let memberPath = /databases/$(database)/documents/organizations/$(orgId)/members/$(request.auth.uid);
-      return exists(memberPath) && get(memberPath).data.permissions.hasAny([permission]);
-    }
-
-    function isFormCreator(orgId, formId) {
-      return request.auth != null && 
-             get(/databases/$(database)/documents/organizations/$(orgId)/formTemplates/$(formId)).data.createdById == request.auth.uid;
     }
   }
 }

@@ -13,6 +13,7 @@ import {
 	signInWithEmailAndPassword,
 	signOut,
 	onAuthStateChanged,
+	sendPasswordResetEmail,
 } from "firebase/auth";
 import { auth } from "./firebase";
 import {
@@ -27,7 +28,9 @@ import { User, UserRole, Permission } from "./schemas";
 interface AuthContextType {
 	currentUser: FirebaseUser | null;
 	userData: (User & { id: string }) | null;
-	setUserData: React.Dispatch<React.SetStateAction<(User & { id: string }) | null>>;
+	setUserData: React.Dispatch<
+		React.SetStateAction<(User & { id: string }) | null>
+	>;
 	loading: boolean;
 	error: string | null;
 	signup: (
@@ -41,6 +44,7 @@ interface AuthContextType {
 	) => Promise<void>;
 	signin: (email: string, password: string) => Promise<void>;
 	logout: () => Promise<void>;
+	resetPassword: (email: string) => Promise<void>;
 	hasPermission: (permission: Permission) => boolean;
 	isAdmin: boolean;
 }
@@ -86,6 +90,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
 	useEffect(() => {
 		const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+			setLoading(true);
 			try {
 				setCurrentUser(firebaseUser);
 				if (firebaseUser) {
@@ -154,18 +159,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 				isActive: true,
 			};
 			await createUser(result.user.uid, newUser);
-			await addTeamMember(
-				orgId,
-				result.user.uid,
-				role,
-				permissions,
-			);
+			await addTeamMember(orgId, result.user.uid, role, permissions);
 
 			// Clean up pending invite document (keyed by email)
 			try {
 				await removeTeamMember(orgId, email);
 			} catch (cleanupErr) {
-				console.warn('[Signup] Pending invite cleanup warning:', cleanupErr);
+				console.warn(
+					"[Signup] Pending invite cleanup warning:",
+					cleanupErr,
+				);
 			}
 
 			setUserData({ ...newUser, id: result.user.uid });
@@ -197,6 +200,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 		}
 	};
 
+	const resetPassword = async (email: string) => {
+		try {
+			setError(null);
+			await sendPasswordResetEmail(auth, email);
+		} catch (err: any) {
+			setError(err.message || "Failed to send reset email");
+			throw err;
+		}
+	};
+
 	const hasPermission = (permission: Permission): boolean => {
 		if (!userData) return false;
 		return userData.permissions.includes(permission);
@@ -213,6 +226,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 		signup,
 		signin,
 		logout,
+		resetPassword,
 		hasPermission,
 		isAdmin,
 	};
