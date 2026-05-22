@@ -20,6 +20,7 @@ import {
 	createOrganization,
 	createUser,
 	getUser,
+	removeTeamMember,
 } from "./firestore";
 import { User, UserRole, Permission } from "./schemas";
 
@@ -33,6 +34,9 @@ interface AuthContextType {
 		password: string,
 		displayName: string,
 		organizationName: string,
+		invitedOrgId?: string,
+		invitedRole?: UserRole,
+		invitedPermissions?: Permission[],
 	) => Promise<void>;
 	signin: (email: string, password: string) => Promise<void>;
 	logout: () => Promise<void>;
@@ -107,6 +111,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 		password: string,
 		displayName: string,
 		organizationName: string,
+		invitedOrgId?: string,
+		invitedRole?: UserRole,
+		invitedPermissions?: Permission[],
 	) => {
 		try {
 			setError(null);
@@ -116,23 +123,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 				password,
 			);
 
-			const orgId = await createOrganization({
-				name: organizationName,
-				createdById: result.user.uid,
-			});
+			let orgId = invitedOrgId;
+			let role = invitedRole || UserRole.AGENT;
+			let permissions = invitedPermissions || [Permission.VIEW];
+
+			if (!orgId) {
+				orgId = await createOrganization({
+					name: organizationName,
+					createdById: result.user.uid,
+				});
+				role = UserRole.ADMIN;
+				permissions = [
+					Permission.VIEW,
+					Permission.EDIT,
+					Permission.DELETE,
+					Permission.EXPORT,
+				];
+			}
 
 			const newUser: User = {
 				uid: result.user.uid,
 				email,
 				displayName,
 				organizationId: orgId,
-				role: UserRole.ADMIN,
-				permissions: [
-					Permission.VIEW,
-					Permission.EDIT,
-					Permission.DELETE,
-					Permission.EXPORT,
-				],
+				role,
+				permissions,
 				createdAt: new Date(),
 				updatedAt: new Date(),
 				isActive: true,
@@ -141,9 +156,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 			await addTeamMember(
 				orgId,
 				result.user.uid,
-				UserRole.ADMIN,
-				newUser.permissions,
+				role,
+				permissions,
 			);
+
+			// Clean up pending invite document (keyed by email)
+			try {
+				await removeTeamMember(orgId, email);
+			} catch (cleanupErr) {
+				console.warn('[Signup] Pending invite cleanup warning:', cleanupErr);
+			}
+
 			setUserData({ ...newUser, id: result.user.uid });
 		} catch (err: any) {
 			setError(err.message || "Failed to sign up");

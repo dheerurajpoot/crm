@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useAuth } from '@/lib/auth-context'
 import { getLeads, getFormTemplates, updateLead, deleteLead } from '@/lib/firestore'
-import { Lead, FormTemplate } from '@/lib/schemas'
+import { Lead, FormTemplate, Permission } from '@/lib/schemas'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -17,6 +17,7 @@ import {
   Edit2,
   Trash2,
   Calendar,
+  RefreshCw,
 } from 'lucide-react'
 import LeadsTable from '@/components/dashboard/leads-table'
 import LeadFilters from '@/components/dashboard/lead-filters'
@@ -29,6 +30,25 @@ export default function LeadsPage() {
   const [forms, setForms] = useState<(FormTemplate & { id: string })[]>([])
   const [loading, setLoading] = useState(true)
   const [exporting, setExporting] = useState(false)
+  const [refreshing, setRefreshing] = useState(false)
+
+  const handleRefresh = async () => {
+    if (!userData) return
+    setRefreshing(true)
+    try {
+      const [leadsData, formsData] = await Promise.all([
+        getLeads(userData.organizationId, []),
+        getFormTemplates(userData.organizationId),
+      ])
+      setLeads(leadsData)
+      setFilteredLeads(leadsData)
+      setForms(formsData)
+    } catch (error) {
+      console.error('[v0] Error refreshing leads:', error)
+    } finally {
+      setRefreshing(false)
+    }
+  }
 
   const [filters, setFilters] = useState({
     search: '',
@@ -93,7 +113,7 @@ export default function LeadsPage() {
   }, [filters, leads])
 
   const handleExport = async () => {
-    if (!userData || !hasPermission('export')) return
+    if (!userData || !hasPermission(Permission.EXPORT)) return
 
     setExporting(true)
     try {
@@ -132,7 +152,16 @@ export default function LeadsPage() {
             </p>
           </div>
           <div className="flex gap-2">
-            {hasPermission('export') && (
+            <Button
+              onClick={handleRefresh}
+              disabled={refreshing}
+              variant="outline"
+              className="border-border text-foreground hover:bg-muted gap-2"
+            >
+              <RefreshCw className={`w-5 h-5 ${refreshing ? 'animate-spin' : ''}`} />
+              {refreshing ? 'Refreshing...' : 'Refresh'}
+            </Button>
+            {hasPermission(Permission.EXPORT) && (
               <Button
                 onClick={handleExport}
                 disabled={exporting || filteredLeads.length === 0}

@@ -4,6 +4,7 @@ import { useAuth } from '@/lib/auth-context'
 import { redirect } from 'next/navigation'
 import DashboardNav from '@/components/dashboard/dashboard-nav'
 import MobileNav from '@/components/dashboard/mobile-nav'
+import DashboardHeader from '@/components/dashboard/dashboard-header'
 
 export default function DashboardLayout({
   children,
@@ -36,6 +37,7 @@ export default function DashboardLayout({
 
       {/* Main Content */}
       <div className="flex-1 flex flex-col overflow-hidden">
+        <DashboardHeader />
         <div className="flex-1 overflow-auto">
           {children}
         </div>

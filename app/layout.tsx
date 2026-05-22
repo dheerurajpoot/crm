@@ -5,6 +5,7 @@ import Script from "next/script";
 
 import "./globals.css";
 import { AuthProvider } from "@/lib/auth-context";
+import { ThemeProvider } from "@/components/theme-provider";
 
 const _geist = Geist({ subsets: ["latin"] });
 const _geistMono = Geist_Mono({ subsets: ["latin"] });
@@ -51,7 +52,7 @@ export default function RootLayout({
 	children: React.ReactNode;
 }>) {
 	return (
-		<html lang='en' className='dark bg-background' suppressHydrationWarning>
+		<html lang='en' suppressHydrationWarning>
 			<head suppressHydrationWarning>
 				<Script
 					id='suppress-aborterror-unhandledrejection'
@@ -73,10 +74,17 @@ export default function RootLayout({
 			<body
 				className='font-sans antialiased bg-background text-foreground'
 				suppressHydrationWarning>
-				<AuthProvider>
-					{children}
-					{process.env.NODE_ENV === "production" && <Analytics />}
-				</AuthProvider>
+				<ThemeProvider
+					attribute="class"
+					defaultTheme="dark"
+					enableSystem={false}
+					disableTransitionOnChange
+				>
+					<AuthProvider>
+						{children}
+						{process.env.NODE_ENV === "production" && <Analytics />}
+					</AuthProvider>
+				</ThemeProvider>
 			</body>
 		</html>
 	);

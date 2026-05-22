@@ -1,6 +1,42 @@
 import ExcelJS from 'exceljs'
 import { Lead, FormTemplate } from './schemas'
 
+const parseDate = (val: any): Date | null => {
+  if (!val) return null
+  if (typeof val.toDate === 'function') {
+    return val.toDate()
+  }
+  if (val instanceof Date) {
+    return val
+  }
+  if (typeof val === 'string' || typeof val === 'number') {
+    const d = new Date(val)
+    return isNaN(d.getTime()) ? null : d
+  }
+  return null
+}
+
+const formatDate = (date: Date | null): string => {
+  if (!date) return ''
+  const pad = (n: number) => String(n).padStart(2, '0')
+  const yyyy = date.getFullYear()
+  const MM = pad(date.getMonth() + 1)
+  const dd = pad(date.getDate())
+  const hh = pad(date.getHours())
+  const mm = pad(date.getMinutes())
+  return `${yyyy}-${MM}-${dd} ${hh}:${mm}`
+}
+
+const getValueCaseInsensitive = (data: Record<string, any> | undefined, targetKeys: string[]): string => {
+  if (!data) return ''
+  for (const k of Object.keys(data)) {
+    if (targetKeys.includes(k.toLowerCase())) {
+      return String(data[k] || '')
+    }
+  }
+  return ''
+}
+
 export async function exportLeadsToExcel(
   leads: (Lead & { id: string })[],
   forms: (FormTemplate & { id: string })[],
@@ -9,67 +45,35 @@ export async function exportLeadsToExcel(
   const workbook = new ExcelJS.Workbook()
   const worksheet = workbook.addWorksheet('Leads')
 
-  // Get all unique field names from all leads
-  const allFieldNames = new Set<string>()
-  leads.forEach((lead) => {
-    Object.keys(lead.data || {}).forEach((key) => allFieldNames.add(key))
-  })
+  // Configure Columns
+  const columnsDef = [
+    { header: 'Name', key: 'name', width: 25 },
+    { header: 'Phone', key: 'phone', width: 20 },
+    { header: 'Email', key: 'email', width: 30 },
+    { header: 'City', key: 'city', width: 20 },
+    { header: 'Loan Amount', key: 'loan_amount', width: 20 },
+    { header: 'Date', key: 'date', width: 22 },
+    { header: 'Status', key: 'status', width: 15 },
+    { header: 'Form Name', key: 'form_name', width: 25 },
+  ]
 
-  // Create headers
-  const headers = ['ID', 'Form', 'Status', 'Created Date', 'Updated Date', ...Array.from(allFieldNames)]
-  worksheet.columns = headers.map((header) => ({
-    header,
-    key: header.toLowerCase().replace(/\s+/g, '_'),
-    width: 15,
-  }))
-
-  // Style header row
-  const headerRow = worksheet.getRow(1)
-  headerRow.font = { bold: true, color: { argb: 'FFFFFFFF' } }
-  headerRow.fill = {
-    type: 'pattern',
-    pattern: 'solid',
-    fgColor: { argb: 'FF3B82F6' },
-  }
-  headerRow.alignment = { horizontal: 'center', vertical: 'center' }
+  worksheet.columns = columnsDef
 
   // Add data rows
-  leads.forEach((lead, index) => {
-    const row = {
-      id: lead.id,
-      form: forms.find((f) => f.id === lead.formId)?.name || 'Unknown',
-      status: lead.status,
-      created_date: new Date(lead.createdAt).toLocaleString(),
-      updated_date: new Date(lead.updatedAt).toLocaleString(),
+  leads.forEach((lead) => {
+    const rowData = {
+      name: getValueCaseInsensitive(lead.data, ['name', 'displayname', 'fullname', 'full name']),
+      phone: getValueCaseInsensitive(lead.data, ['phone', 'mobile', 'contact', 'phone number', 'phonenumber']),
+      email: getValueCaseInsensitive(lead.data, ['email', 'email address', 'emailaddress']),
+      city: getValueCaseInsensitive(lead.data, ['city', 'location', 'address']),
+      loan_amount: getValueCaseInsensitive(lead.data, ['loanamount', 'loan_amount', 'amount', 'loan']),
+      date: formatDate(parseDate(lead.createdAt)),
+      status: lead.status ? lead.status.toUpperCase() : 'NEW',
+      form_name: forms.find((f) => f.id === lead.formId)?.name || 'Unknown',
     }
 
-    // Add field data
-    allFieldNames.forEach((fieldName) => {
-      const key = fieldName.toLowerCase().replace(/\s+/g, '_')
-      ;(row as any)[key] = lead.data?.[fieldName] || ''
-    })
-
-    worksheet.addRow(row)
+    worksheet.addRow(rowData)
   })
-
-  // Format data cells
-  for (let i = 2; i <= leads.length + 1; i++) {
-    const row = worksheet.getRow(i)
-    row.alignment = { horizontal: 'left', vertical: 'center', wrapText: true }
-    row.font = { color: { argb: 'FF000000' } }
-
-    // Alternate row colors
-    if (i % 2 === 0) {
-      row.fill = {
-        type: 'pattern',
-        pattern: 'solid',
-        fgColor: { argb: 'FFF3F4F6' },
-      }
-    }
-  }
-
-  // Freeze header row
-  worksheet.views = [{ state: 'frozen', ySplit: 1 }]
 
   // Generate file
   const buffer = await workbook.xlsx.writeBuffer()

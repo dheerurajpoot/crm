@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useAuth } from '@/lib/auth-context'
 import { getFormTemplates } from '@/lib/firestore'
-import { FormTemplate } from '@/lib/schemas'
+import { FormTemplate, Permission } from '@/lib/schemas'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import Link from 'next/link'
@@ -109,7 +109,7 @@ export default function FormsPage() {
                         View
                       </Button>
                     </Link>
-                    {hasPermission('edit') && (
+                    {hasPermission(Permission.EDIT) && (
                       <Link href={`/dashboard/forms/${form.id}/edit`} className="flex-1">
                         <Button className="w-full gap-2 bg-accent hover:bg-accent/90 text-accent-foreground">
                           <Edit2 className="w-4 h-4" />

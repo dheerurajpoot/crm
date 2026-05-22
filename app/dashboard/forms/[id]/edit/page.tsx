@@ -1,66 +1,52 @@
 'use client'
 
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useEffect, useState } from 'react'
+import { useParams, useRouter } from 'next/navigation'
 import { useAuth } from '@/lib/auth-context'
-import { createFormTemplate } from '@/lib/firestore'
+import { getFormTemplate, updateFormTemplate, createLeadActivity } from '@/lib/firestore'
 import { FormField } from '@/lib/schemas'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Plus, Trash2, Save, X } from 'lucide-react'
+import { Plus, Trash2, Save, ArrowLeft, Loader2 } from 'lucide-react'
+import Link from 'next/link'
 
-const DEFAULT_FIELDS: FormField[] = [
-  {
-    id: '1',
-    name: 'name',
-    label: 'Name',
-    type: 'text',
-    required: true,
-    order: 1,
-  },
-  {
-    id: '2',
-    name: 'phone',
-    label: 'Phone',
-    type: 'phone',
-    required: true,
-    order: 2,
-  },
-  {
-    id: '3',
-    name: 'email',
-    label: 'Email',
-    type: 'email',
-    required: true,
-    order: 3,
-  },
-  {
-    id: '4',
-    name: 'city',
-    label: 'City',
-    type: 'text',
-    required: true,
-    order: 4,
-  },
-  {
-    id: '5',
-    name: 'loanAmount',
-    label: 'Loan Amount',
-    type: 'number',
-    required: true,
-    order: 5,
-  },
-]
-
-export default function NewFormPage() {
+export default function EditFormPage() {
+  const params = useParams()
   const router = useRouter()
   const { userData } = useAuth()
+  const formId = params.id as string
+
   const [formName, setFormName] = useState('')
   const [formDescription, setFormDescription] = useState('')
-  const [fields, setFields] = useState<FormField[]>(DEFAULT_FIELDS)
+  const [fields, setFields] = useState<FormField[]>([])
+  const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+
+  useEffect(() => {
+    const loadForm = async () => {
+      if (!userData || !formId) return
+
+      try {
+        const formData = await getFormTemplate(userData.organizationId, formId)
+        if (formData) {
+          setFormName(formData.name)
+          setFormDescription(formData.description || '')
+          setFields(formData.fields || [])
+        } else {
+          setError('Form not found')
+        }
+      } catch (err: any) {
+        console.error('[Form Editor] Failed to load form template:', err)
+        setError('Failed to load form template')
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    loadForm()
+  }, [userData, formId])
 
   const handleAddField = () => {
     const newField: FormField = {
@@ -99,45 +85,75 @@ export default function NewFormPage() {
     setError('')
 
     try {
-      const formId = await createFormTemplate(userData.organizationId, {
+      // 1. Update the form template in Firestore
+      await updateFormTemplate(userData.organizationId, formId, {
         name: formName,
         description: formDescription,
-        organizationId: userData.organizationId,
-        createdById: userData.uid,
         fields: fields.sort((a, b) => a.order - b.order),
-        isActive: true,
       })
+
+      // 2. Audit log activity trace
+      try {
+        await createLeadActivity(userData.organizationId, {
+          leadId: '',
+          organizationId: userData.organizationId,
+          userId: userData.uid,
+          action: 'updated',
+          changes: { note: `Updated form configuration for: ${formName}` },
+        })
+      } catch (actErr) {
+        console.error('[Form Editor] Failed to log activity:', actErr)
+      }
 
       router.push(`/dashboard/forms/${formId}`)
     } catch (err: any) {
-      setError(err.message || 'Failed to create form')
+      setError(err.message || 'Failed to update form template')
     } finally {
       setSaving(false)
     }
+  }
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-screen bg-background">
+        <div className="text-center space-y-4">
+          <Loader2 className="w-12 h-12 animate-spin text-primary mx-auto" />
+          <p className="text-muted-foreground text-sm">Loading form templates...</p>
+        </div>
+      </div>
+    )
   }
 
   return (
     <div className="flex-1 overflow-auto">
       <div className="p-4 md:p-8 space-y-6 mb-20 md:mb-0 max-w-4xl mx-auto">
         {/* Header */}
-        <div>
-          <h1 className="text-3xl font-bold text-foreground">Create New Form</h1>
-          <p className="text-muted-foreground mt-2">Design your lead collection form</p>
+        <div className="space-y-1">
+          <div className="flex items-center gap-3">
+            <Link href={`/dashboard/forms/${formId}`}>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-muted-foreground hover:text-foreground h-8 w-8 p-0"
+              >
+                <ArrowLeft className="w-4 h-4" />
+              </Button>
+            </Link>
+            <h1 className="text-3xl font-bold text-foreground tracking-tight">Edit Form</h1>
+          </div>
+          <p className="text-muted-foreground text-sm ml-11">Modify lead collection form fields and details.</p>
         </div>
 
         {/* Form Details */}
         <Card className="border-border bg-card">
-          <CardHeader>
-            <CardTitle>Form Details</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className="space-y-4 pt-6">
             <div>
               <label className="text-sm font-medium text-foreground block mb-2">Form Name *</label>
               <Input
                 value={formName}
                 onChange={(e) => setFormName(e.target.value)}
                 placeholder="e.g., Loan Application Form"
-                className="bg-input border-border"
+                className="bg-input border-border text-foreground"
               />
             </div>
 
@@ -147,7 +163,7 @@ export default function NewFormPage() {
                 value={formDescription}
                 onChange={(e) => setFormDescription(e.target.value)}
                 placeholder="Describe what this form is for..."
-                className="w-full px-3 py-2 rounded-lg bg-input border border-border text-foreground resize-none"
+                className="w-full px-3 py-2 rounded-lg bg-input border border-border text-foreground resize-none text-sm outline-none focus:ring-1 focus:ring-primary"
                 rows={3}
               />
             </div>
@@ -156,11 +172,11 @@ export default function NewFormPage() {
 
         {/* Fields */}
         <Card className="border-border bg-card">
-          <CardHeader className="flex items-center justify-between">
-            <CardTitle>Form Fields</CardTitle>
+          <CardHeader className="flex flex-row items-center justify-between pb-4">
+            <CardTitle className="text-lg">Form Fields</CardTitle>
             <Button
               onClick={handleAddField}
-              className="bg-primary hover:bg-primary/90 text-primary-foreground gap-2"
+              className="bg-primary hover:bg-primary/90 text-primary-foreground gap-1.5"
             >
               <Plus className="w-4 h-4" />
               Add Field
@@ -168,28 +184,28 @@ export default function NewFormPage() {
           </CardHeader>
           <CardContent className="space-y-4">
             {error && (
-              <div className="p-3 rounded-lg bg-red-500/10 text-red-600 text-sm">
+              <div className="p-3 rounded-lg bg-red-500/10 text-red-500 text-sm border border-red-500/20">
                 {error}
               </div>
             )}
 
             {fields.map((field, index) => (
-              <div key={field.id} className="p-4 rounded-lg border border-border/50 bg-muted/20 space-y-3">
-                <div className="flex items-start justify-between">
-                  <span className="text-xs font-medium text-muted-foreground">Field {index + 1}</span>
+              <div key={field.id} className="p-4 rounded-lg border border-border/50 bg-muted/20 space-y-3 relative">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-muted-foreground">Field {index + 1}</span>
                   <Button
                     variant="ghost"
                     size="sm"
                     onClick={() => handleDeleteField(field.id)}
-                    className="text-red-400 hover:bg-red-500/10 hover:text-red-500"
+                    className="text-red-400 hover:bg-red-500/10 hover:text-red-500 h-8 w-8 p-0"
                   >
                     <Trash2 className="w-4 h-4" />
                   </Button>
                 </div>
 
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="text-xs font-medium text-muted-foreground block mb-1">
+                    <label className="text-xs font-semibold text-muted-foreground block mb-1">
                       Label *
                     </label>
                     <Input
@@ -201,13 +217,13 @@ export default function NewFormPage() {
                   </div>
 
                   <div>
-                    <label className="text-xs font-medium text-muted-foreground block mb-1">
+                    <label className="text-xs font-semibold text-muted-foreground block mb-1">
                       Type
                     </label>
                     <select
                       value={field.type}
                       onChange={(e) => handleUpdateField(field.id, { type: e.target.value as any })}
-                      className="w-full px-3 py-2 rounded-lg bg-input border border-border text-foreground text-sm"
+                      className="w-full h-10 px-3 py-2 rounded-lg bg-input border border-border text-foreground text-sm outline-none"
                     >
                       <option value="text">Text</option>
                       <option value="email">Email</option>
@@ -221,7 +237,7 @@ export default function NewFormPage() {
                 </div>
 
                 <div>
-                  <label className="text-xs font-medium text-muted-foreground block mb-1">
+                  <label className="text-xs font-semibold text-muted-foreground block mb-1">
                     Placeholder
                   </label>
                   <Input
@@ -234,7 +250,7 @@ export default function NewFormPage() {
 
                 {field.type === 'select' && (
                   <div>
-                    <label className="text-xs font-medium text-muted-foreground block mb-1">
+                    <label className="text-xs font-semibold text-muted-foreground block mb-1">
                       Options (comma-separated) *
                     </label>
                     <Input
@@ -248,16 +264,16 @@ export default function NewFormPage() {
                   </div>
                 )}
 
-                <div className="flex items-center gap-2 pt-2">
+                <div className="flex items-center gap-2 pt-1.5">
                   <input
                     type="checkbox"
                     id={`required-${field.id}`}
                     checked={field.required}
                     onChange={(e) => handleUpdateField(field.id, { required: e.target.checked })}
-                    className="w-4 h-4 rounded border-border"
+                    className="w-4 h-4 rounded border-border bg-input accent-primary"
                   />
-                  <label htmlFor={`required-${field.id}`} className="text-sm text-foreground cursor-pointer">
-                    Required field
+                  <label htmlFor={`required-${field.id}`} className="text-xs font-medium text-foreground cursor-pointer">
+                    Required Field
                   </label>
                 </div>
               </div>
@@ -277,10 +293,19 @@ export default function NewFormPage() {
           <Button
             onClick={handleSave}
             disabled={saving}
-            className="bg-primary hover:bg-primary/90 text-primary-foreground gap-2"
+            className="bg-primary hover:bg-primary/90 text-primary-foreground gap-1.5"
           >
-            <Save className="w-4 h-4" />
-            {saving ? 'Creating...' : 'Create Form'}
+            {saving ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Saving...
+              </>
+            ) : (
+              <>
+                <Save className="w-4 h-4" />
+                Save Changes
+              </>
+            )}
           </Button>
         </div>
       </div>

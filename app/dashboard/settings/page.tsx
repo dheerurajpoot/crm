@@ -1,13 +1,53 @@
 'use client'
 
+import { useState, useEffect } from 'react'
 import { useAuth } from '@/lib/auth-context'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Shield, Bell, Lock, Database } from 'lucide-react'
+import { Shield, Bell, Lock, Database, Loader2 } from 'lucide-react'
+import { getOrganization, updateOrganization } from '@/lib/firestore'
 
 export default function SettingsPage() {
   const { userData, isAdmin } = useAuth()
+  const [orgName, setOrgName] = useState('')
+  const [loadingOrg, setLoadingOrg] = useState(false)
+  const [updatingOrg, setUpdatingOrg] = useState(false)
+  const [orgMessage, setOrgMessage] = useState('')
+  const [orgError, setOrgError] = useState('')
+
+  useEffect(() => {
+    const loadOrgName = async () => {
+      if (!userData?.organizationId) return
+      setLoadingOrg(true)
+      try {
+        const org = await getOrganization(userData.organizationId)
+        if (org) {
+          setOrgName(org.name)
+        }
+      } catch (err) {
+        console.error('[Settings] Error fetching organization:', err)
+      } finally {
+        setLoadingOrg(false)
+      }
+    }
+    loadOrgName()
+  }, [userData?.organizationId])
+
+  const handleUpdateOrg = async () => {
+    if (!userData?.organizationId || !orgName.trim()) return
+    setUpdatingOrg(true)
+    setOrgMessage('')
+    setOrgError('')
+    try {
+      await updateOrganization(userData.organizationId, { name: orgName })
+      setOrgMessage('Organization name updated successfully!')
+    } catch (err: any) {
+      setOrgError(err.message || 'Failed to update organization name')
+    } finally {
+      setUpdatingOrg(false)
+    }
+  }
 
   if (!isAdmin) {
     return (
@@ -67,7 +107,7 @@ export default function SettingsPage() {
               <label className="text-sm font-medium text-foreground block mb-2">Role</label>
               <Input
                 type="text"
-                value={userData?.role.charAt(0).toUpperCase() + userData?.role.slice(1) || ''}
+                value={userData?.role ? userData.role.charAt(0).toUpperCase() + userData.role.slice(1) : ''}
                 disabled
                 className="bg-input border-border disabled:opacity-50"
               />
@@ -122,6 +162,40 @@ export default function SettingsPage() {
                 disabled
                 className="bg-input border-border disabled:opacity-50 font-mono text-xs"
               />
+            </div>
+
+            <div>
+              <label className="text-sm font-medium text-foreground block mb-2">Organization Name</label>
+              <div className="flex gap-2">
+                <Input
+                  type="text"
+                  value={orgName}
+                  onChange={(e) => setOrgName(e.target.value)}
+                  placeholder="Organization Name"
+                  disabled={loadingOrg || updatingOrg}
+                  className="bg-input border-border"
+                />
+                <Button 
+                  onClick={handleUpdateOrg}
+                  disabled={loadingOrg || updatingOrg || !orgName.trim()}
+                  className="bg-primary hover:bg-primary/90 text-primary-foreground shrink-0"
+                >
+                  {updatingOrg ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Saving...
+                    </>
+                  ) : (
+                    'Save'
+                  )}
+                </Button>
+              </div>
+              {orgMessage && (
+                <p className="text-xs text-green-500 mt-1.5 font-medium">{orgMessage}</p>
+              )}
+              {orgError && (
+                <p className="text-xs text-red-500 mt-1.5 font-medium">{orgError}</p>
+              )}
             </div>
 
             <div className="p-4 rounded-lg bg-muted/20 border border-border/50">

@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/lib/auth-context";
 import { Button } from "@/components/ui/button";
@@ -21,9 +21,16 @@ import {
 } from "@/components/ui/card";
 import { AlertCircle, Eye, EyeOff, UserPlus } from "lucide-react";
 
-export default function SignupPage() {
+function SignupForm() {
 	const router = useRouter();
+	const searchParams = useSearchParams();
 	const { signup, loading: authLoading } = useAuth();
+	
+	const invitedOrgId = searchParams.get('orgId') || '';
+	const invitedEmail = searchParams.get('email') || '';
+	const invitedRole = searchParams.get('role') || '';
+	const invitedPerms = searchParams.get('permissions') || '';
+
 	const [displayName, setDisplayName] = useState("");
 	const [organizationName, setOrganizationName] = useState("");
 	const [email, setEmail] = useState("");
@@ -33,6 +40,12 @@ export default function SignupPage() {
 	const [loading, setLoading] = useState(false);
 	const [showPassword, setShowPassword] = useState(false);
 	const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
+	useEffect(() => {
+		if (invitedEmail) {
+			setEmail(invitedEmail);
+		}
+	}, [invitedEmail]);
 
 	const passwordsMismatch =
 		confirmPassword.length > 0 && password !== confirmPassword;
@@ -58,7 +71,12 @@ export default function SignupPage() {
 		setLoading(true);
 
 		try {
-			await signup(email, password, displayName, organizationName);
+			if (invitedOrgId) {
+				const parsedPerms = invitedPerms ? JSON.parse(decodeURIComponent(invitedPerms)) : [];
+				await signup(email, password, displayName, "", invitedOrgId, invitedRole as any, parsedPerms);
+			} else {
+				await signup(email, password, displayName, organizationName);
+			}
 			router.push("/dashboard");
 		} catch (err: any) {
 			setError(err.message || "Failed to sign up");
@@ -125,21 +143,23 @@ export default function SignupPage() {
 								/>
 							</div>
 
-							<div className='space-y-2'>
-								<label className='text-sm font-medium text-foreground'>
-									Organization Name
-								</label>
-								<Input
-									type='text'
-									placeholder='Your Company'
-									value={organizationName}
-									onChange={(e) =>
-										setOrganizationName(e.target.value)
-									}
-									required
-									className='bg-input border-border'
-								/>
-							</div>
+							{!invitedOrgId && (
+								<div className='space-y-2'>
+									<label className='text-sm font-medium text-foreground'>
+										Organization Name
+									</label>
+									<Input
+										type='text'
+										placeholder='Your Company'
+										value={organizationName}
+										onChange={(e) =>
+											setOrganizationName(e.target.value)
+										}
+										required
+										className='bg-input border-border'
+									/>
+								</div>
+							)}
 
 							<div className='space-y-2'>
 								<label className='text-sm font-medium text-foreground'>
@@ -151,7 +171,8 @@ export default function SignupPage() {
 									value={email}
 									onChange={(e) => setEmail(e.target.value)}
 									required
-									className='bg-input border-border'
+									disabled={!!invitedEmail}
+									className='bg-input border-border disabled:opacity-60'
 								/>
 							</div>
 
@@ -274,5 +295,20 @@ export default function SignupPage() {
 				</p>
 			</div>
 		</div>
+	);
+}
+
+export default function SignupPage() {
+	return (
+		<Suspense fallback={
+			<div className='flex items-center justify-center min-h-screen bg-background'>
+				<div className='text-center'>
+					<div className='inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-primary'></div>
+					<p className='mt-4 text-foreground'>Loading signup...</p>
+				</div>
+			</div>
+		}>
+			<SignupForm />
+		</Suspense>
 	);
 }

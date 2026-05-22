@@ -83,6 +83,16 @@ export async function getUserOrganizations(userId: string) {
 	return querySnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
 }
 
+export async function updateOrganization(
+	orgId: string,
+	updates: Partial<Omit<Organization, "id" | "createdAt" | "updatedAt">>,
+) {
+	await updateDoc(doc(db, "organizations", orgId), {
+		...updates,
+		updatedAt: Timestamp.now(),
+	});
+}
+
 // ========== Team Members ==========
 export async function addTeamMember(
 	organizationId: string,
@@ -316,13 +326,26 @@ export async function getLeadActivities(
 		query(
 			collection(db, "organizations", organizationId, "activities"),
 			where("leadId", "==", leadId),
-			orderBy("createdAt", "desc"),
 		),
 	);
-	return querySnapshot.docs.map((doc) => ({
+	const activities = querySnapshot.docs.map((doc) => ({
 		id: doc.id,
 		...doc.data(),
-	})) as (LeadActivity & { id: string })[];
+	})) as (LeadActivity & { id: string } & { createdAt?: any })[];
+
+	activities.sort((a, b) => {
+		const toMillis = (val: any) => {
+			if (!val) return 0;
+			if (val instanceof Date) return val.getTime();
+			if (typeof val.toMillis === 'function') return val.toMillis();
+			if (val.seconds !== undefined) return val.seconds * 1000;
+			const parsed = new Date(val);
+			return isNaN(parsed.getTime()) ? 0 : parsed.getTime();
+		};
+		return toMillis(b.createdAt) - toMillis(a.createdAt);
+	});
+
+	return activities as (LeadActivity & { id: string })[];
 }
 
 // ========== Utility Functions ==========
