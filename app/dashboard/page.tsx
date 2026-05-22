@@ -24,7 +24,7 @@ import {
 } from 'lucide-react'
 
 export default function DashboardHome() {
-  const { userData } = useAuth()
+  const { userData, isAdmin } = useAuth()
   const [stats, setStats] = useState({
     totalLeads: 0,
     totalForms: 0,
@@ -209,45 +209,85 @@ export default function DashboardHome() {
 
         {/* Quick Actions */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <Card className="border-border bg-card">
-            <CardHeader className="p-4 sm:p-6 pb-3">
-              <CardTitle className="text-base sm:text-lg">Quick Actions</CardTitle>
-            </CardHeader>
-            <CardContent className="p-4 sm:p-6 pt-0 space-y-3">
-              <Link href="/dashboard/leads/new">
-                <Button className="w-full justify-start gap-2 bg-primary hover:bg-primary/90 text-primary-foreground">
-                  <FileText className="w-5 h-5" />
-                  Add New Lead Manually
-                </Button>
-              </Link>
-              <Link href="/dashboard/forms/new">
-                <Button className="w-full justify-start gap-2 bg-accent hover:bg-accent/90 text-accent-foreground">
-                  <Activity className="w-5 h-5" />
-                  Create New Form
-                </Button>
-              </Link>
-            </CardContent>
-          </Card>
+          {isAdmin ? (
+            <>
+              <Card className="border-border bg-card">
+                <CardHeader className="p-4 sm:p-6 pb-3">
+                  <CardTitle className="text-base sm:text-lg">Quick Actions</CardTitle>
+                </CardHeader>
+                <CardContent className="p-4 sm:p-6 pt-0 space-y-3">
+                  <Link href="/dashboard/leads/new">
+                    <Button className="w-full justify-start gap-2 bg-primary hover:bg-primary/90 text-primary-foreground">
+                      <FileText className="w-5 h-5" />
+                      Add New Lead Manually
+                    </Button>
+                  </Link>
+                  <Link href="/dashboard/forms/new">
+                    <Button className="w-full justify-start gap-2 bg-accent hover:bg-accent/90 text-accent-foreground">
+                      <Activity className="w-5 h-5" />
+                      Create New Form
+                    </Button>
+                  </Link>
+                </CardContent>
+              </Card>
 
-          <Card className="border-border bg-card">
-            <CardHeader className="p-4 sm:p-6 pb-3">
-              <CardTitle className="text-base sm:text-lg">Get Started</CardTitle>
-            </CardHeader>
-            <CardContent className="p-4 sm:p-6 pt-0 space-y-3">
-              <Link href="/dashboard/forms">
-                <Button variant="outline" className="w-full justify-start gap-2 border-border">
-                  <Menu className="w-5 h-5" />
-                  Manage Forms
-                </Button>
-              </Link>
-              <Link href="/dashboard/team">
-                <Button variant="outline" className="w-full justify-start gap-2 border-border">
-                  <Users className="w-5 h-5" />
-                  Invite Team Members
-                </Button>
-              </Link>
-            </CardContent>
-          </Card>
+              <Card className="border-border bg-card">
+                <CardHeader className="p-4 sm:p-6 pb-3">
+                  <CardTitle className="text-base sm:text-lg">Get Started</CardTitle>
+                </CardHeader>
+                <CardContent className="p-4 sm:p-6 pt-0 space-y-3">
+                  <Link href="/dashboard/forms">
+                    <Button variant="outline" className="w-full justify-start gap-2 border-border">
+                      <Menu className="w-5 h-5" />
+                      Manage Forms
+                    </Button>
+                  </Link>
+                  <Link href="/dashboard/team">
+                    <Button variant="outline" className="w-full justify-start gap-2 border-border">
+                      <Users className="w-5 h-5" />
+                      Invite Team Members
+                    </Button>
+                  </Link>
+                </CardContent>
+              </Card>
+            </>
+          ) : (
+            <>
+              <Card className="border-border bg-card">
+                <CardHeader className="p-4 sm:p-6 pb-3">
+                  <CardTitle className="text-base sm:text-lg">Agent Actions</CardTitle>
+                </CardHeader>
+                <CardContent className="p-4 sm:p-6 pt-0 space-y-3">
+                  <Link href="/dashboard/leads/new">
+                    <Button className="w-full justify-start gap-2 bg-primary hover:bg-primary/90 text-primary-foreground">
+                      <FileText className="w-5 h-5" />
+                      Add New Lead Manually
+                    </Button>
+                  </Link>
+                  <Link href="/dashboard/leads">
+                    <Button variant="outline" className="w-full justify-start gap-2 border-border">
+                      <FileText className="w-5 h-5" />
+                      View Leads Database
+                    </Button>
+                  </Link>
+                </CardContent>
+              </Card>
+
+              <Card className="border-border bg-card">
+                <CardHeader className="p-4 sm:p-6 pb-3">
+                  <CardTitle className="text-base sm:text-lg">My Account</CardTitle>
+                </CardHeader>
+                <CardContent className="p-4 sm:p-6 pt-0 space-y-3">
+                  <Link href="/dashboard/profile">
+                    <Button variant="outline" className="w-full justify-start gap-2 border-border">
+                      <Users className="w-5 h-5" />
+                      View Profile & Permissions
+                    </Button>
+                  </Link>
+                </CardContent>
+              </Card>
+            </>
+          )}
         </div>
       </div>
     </div>

@@ -11,14 +11,16 @@ import {
 	Settings,
 	LogOut,
 	Menu,
+	User,
 } from "lucide-react";
 import { useState } from "react";
 
 const navItems = [
 	{ href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
 	{ href: "/dashboard/leads", label: "Leads", icon: FileText },
-	{ href: "/dashboard/forms", label: "Forms", icon: Menu },
+	{ href: "/dashboard/forms", label: "Forms", icon: Menu, adminOnly: true },
 	{ href: "/dashboard/team", label: "Team", icon: Users, adminOnly: true },
+	{ href: "/dashboard/profile", label: "Profile", icon: User },
 	{
 		href: "/dashboard/settings",
 		label: "Settings",

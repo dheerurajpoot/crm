@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { useAuth } from '@/lib/auth-context'
 import { Button } from '@/components/ui/button'
@@ -11,6 +11,8 @@ import { AlertCircle, LogIn } from 'lucide-react'
 
 export default function LoginPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const errorParam = searchParams ? searchParams.get('error') : null
   const { signin, loading: authLoading } = useAuth()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -65,6 +67,13 @@ export default function LoginPage() {
                 <div className="p-3 rounded-lg bg-red-500/10 text-red-600 flex items-start gap-2">
                   <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
                   <span className="text-sm">{error}</span>
+                </div>
+              )}
+
+              {errorParam === 'removed' && !error && (
+                <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-600 flex items-start gap-2 animate-pulse">
+                  <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
+                  <span className="text-sm">Your account has been removed from the organization. Please contact your administrator.</span>
                 </div>
               )}
 

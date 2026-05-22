@@ -141,6 +141,20 @@ export async function updateTeamMemberPermissions(
 }
 
 export async function removeTeamMember(organizationId: string, userId: string) {
+	// 1. Remove organization details from user document first while admin credentials are valid for that organization
+	if (userId && !userId.includes("@")) {
+		try {
+			await updateDoc(doc(db, "users", userId), {
+				organizationId: "",
+				role: "viewer",
+				permissions: [],
+			});
+		} catch (e) {
+			console.warn("[removeTeamMember] Failed to clear organization from user document:", e);
+		}
+	}
+
+	// 2. Delete the member record from the organization's member list
 	await deleteDoc(
 		doc(db, "organizations", organizationId, "members", userId),
 	);
@@ -218,6 +232,15 @@ export async function updateFormTemplate(
 			...updates,
 			updatedAt: Timestamp.now(),
 		},
+	);
+}
+
+export async function deleteFormTemplate(
+	organizationId: string,
+	templateId: string,
+) {
+	await deleteDoc(
+		doc(db, "organizations", organizationId, "formTemplates", templateId),
 	);
 }
 

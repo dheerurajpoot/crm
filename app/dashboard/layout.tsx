@@ -2,6 +2,7 @@
 
 import { useAuth } from '@/lib/auth-context'
 import { redirect } from 'next/navigation'
+import { useEffect } from 'react'
 import DashboardNav from '@/components/dashboard/dashboard-nav'
 import MobileNav from '@/components/dashboard/mobile-nav'
 import DashboardHeader from '@/components/dashboard/dashboard-header'
@@ -11,7 +12,15 @@ export default function DashboardLayout({
 }: {
   children: React.ReactNode
 }) {
-  const { currentUser, loading } = useAuth()
+  const { currentUser, userData, loading, logout } = useAuth()
+
+  useEffect(() => {
+    if (!loading && currentUser && (!userData || !userData.organizationId)) {
+      logout().then(() => {
+        window.location.href = '/login?error=removed'
+      })
+    }
+  }, [currentUser, userData, loading, logout])
 
   if (loading) {
     return (
@@ -24,8 +33,15 @@ export default function DashboardLayout({
     )
   }
 
-  if (!currentUser) {
-    redirect('/login')
+  if (!currentUser || !userData || !userData.organizationId) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-background">
+        <div className="text-center">
+          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+          <p className="mt-4 text-foreground">Redirecting...</p>
+        </div>
+      </div>
+    )
   }
 
   return (

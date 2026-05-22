@@ -67,7 +67,17 @@ export default function TeamPage() {
         const membersWithDetails: TeamMember[] = await Promise.all(
           membersData.map(async (m: any) => {
             const member = m as any
-            const user = await getUser(member.userId)
+            let user = null
+            
+            // If member.userId is an email, it's a pending invitation and has no /users document
+            if (member.userId && !member.userId.includes('@')) {
+              try {
+                user = await getUser(member.userId)
+              } catch (userErr) {
+                console.warn(`[Team] Failed to load details for user ID ${member.userId}:`, userErr)
+              }
+            }
+
             return {
               userId: member.userId,
               role: (member.role || UserRole.AGENT) as UserRole,
@@ -227,7 +237,7 @@ export default function TeamPage() {
               <CardDescription>
                 {emailSentStatus === 'sent'
                   ? `An email invitation was dispatched to the user. The user can register using that link.`
-                  : `We saved the member in the database, but since RESEND_API_KEY is missing, we could not send a real email. Please copy the link below and send it to them manually:`}
+                  : `We saved the member in the database, but we could not send a real email (this usually occurs on Resend sandbox/onboarding keys if the recipient email domain is not verified). Please copy the link below and send it to them manually:`}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">

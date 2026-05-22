@@ -10,12 +10,12 @@ import { Button } from '@/components/ui/button'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { Input } from '@/components/ui/input'
 import Link from 'next/link'
-import { ArrowLeft, Edit2, Copy, Eye, FileText, Check, Sparkles, Monitor, Smartphone, Code, Sliders, CheckCircle2, Loader2 } from 'lucide-react'
+import { ArrowLeft, Edit2, Copy, Eye, FileText, Check, Sparkles, Monitor, Smartphone, Code, Sliders, CheckCircle2, Loader2, Shield } from 'lucide-react'
 
 export default function FormViewPage() {
   const params = useParams()
   const router = useRouter()
-  const { userData } = useAuth()
+  const { userData, isAdmin } = useAuth()
   const formId = params.id as string
 
   const [form, setForm] = useState<FormTemplate & { id: string } | null>(null)
@@ -84,6 +84,24 @@ export default function FormViewPage() {
           <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
           <p className="text-muted-foreground">Loading form details...</p>
         </div>
+      </div>
+    )
+  }
+
+  if (!isAdmin) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <Card className="border-border bg-card max-w-md w-full mx-4">
+          <CardContent className="py-12">
+            <div className="text-center">
+              <Shield className="w-12 h-12 text-muted-foreground mx-auto mb-4 opacity-50" />
+              <h3 className="text-lg font-medium text-foreground mb-2">Admin Access Required</h3>
+              <p className="text-muted-foreground">
+                Only administrators can view and manage forms
+              </p>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     )
   }

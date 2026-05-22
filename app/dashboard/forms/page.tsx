@@ -2,17 +2,29 @@
 
 import { useEffect, useState } from 'react'
 import { useAuth } from '@/lib/auth-context'
-import { getFormTemplates } from '@/lib/firestore'
+import { getFormTemplates, deleteFormTemplate } from '@/lib/firestore'
 import { FormTemplate, Permission } from '@/lib/schemas'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import Link from 'next/link'
-import { Plus, Edit2, Copy, Trash2, Eye } from 'lucide-react'
+import { Plus, Edit2, Copy, Trash2, Eye, Shield } from 'lucide-react'
 
 export default function FormsPage() {
-  const { userData, hasPermission } = useAuth()
+  const { userData, hasPermission, isAdmin } = useAuth()
   const [forms, setForms] = useState<(FormTemplate & { id: string })[]>([])
   const [loading, setLoading] = useState(true)
+
+  const handleDeleteForm = async (formId: string) => {
+    if (!userData || !confirm('Are you sure you want to delete this form template? This will not delete collected leads.')) return
+
+    try {
+      await deleteFormTemplate(userData.organizationId, formId)
+      setForms((prev) => prev.filter((f) => f.id !== formId))
+    } catch (error) {
+      console.error('[Forms] Error deleting form template:', error)
+      alert('Failed to delete form template')
+    }
+  }
 
   useEffect(() => {
     const loadForms = async () => {
@@ -38,6 +50,24 @@ export default function FormsPage() {
           <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
           <p className="mt-4 text-foreground">Loading forms...</p>
         </div>
+      </div>
+    )
+  }
+
+  if (!isAdmin) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <Card className="border-border bg-card max-w-md w-full mx-4">
+          <CardContent className="py-12">
+            <div className="text-center">
+              <Shield className="w-12 h-12 text-muted-foreground mx-auto mb-4 opacity-50" />
+              <h3 className="text-lg font-medium text-foreground mb-2">Admin Access Required</h3>
+              <p className="text-muted-foreground">
+                Only administrators can manage forms
+              </p>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     )
   }
@@ -116,6 +146,16 @@ export default function FormsPage() {
                           Edit
                         </Button>
                       </Link>
+                    )}
+                    {isAdmin && (
+                      <Button
+                        onClick={() => handleDeleteForm(form.id)}
+                        variant="destructive"
+                        className="px-3"
+                        title="Delete Form"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
                     )}
                   </div>
                 </CardContent>

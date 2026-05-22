@@ -27,6 +27,7 @@ import { User, UserRole, Permission } from "./schemas";
 interface AuthContextType {
 	currentUser: FirebaseUser | null;
 	userData: (User & { id: string }) | null;
+	setUserData: React.Dispatch<React.SetStateAction<(User & { id: string }) | null>>;
 	loading: boolean;
 	error: string | null;
 	signup: (
@@ -206,6 +207,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 	const value: AuthContextType = {
 		currentUser,
 		userData,
+		setUserData,
 		loading,
 		error,
 		signup,
