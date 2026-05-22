@@ -11,15 +11,7 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import {
-	Shield,
-	Bell,
-	Lock,
-	Database,
-	Loader2,
-	Trash2,
-	AlertTriangle,
-} from "lucide-react";
+import { Shield, Lock, Loader2, Trash2, AlertTriangle } from "lucide-react";
 import {
 	getOrganization,
 	updateOrganization,
