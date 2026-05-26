@@ -25,6 +25,15 @@ export default function LeadsPage() {
 	const [refreshing, setRefreshing] = useState(false);
 	const [deleting, setDeleting] = useState(false);
 
+	const getSafeDate = (value: any): Date => {
+		if (!value) return new Date();
+		if (value instanceof Date) return value;
+		if (typeof value.toDate === "function") return value.toDate();
+		if (value.seconds !== undefined) return new Date(value.seconds * 1000);
+		const parsed = new Date(value);
+		return isNaN(parsed.getTime()) ? new Date() : parsed;
+	};
+
 	const handleRefresh = async () => {
 		if (!userData) return;
 		setRefreshing(true);
@@ -116,7 +125,7 @@ export default function LeadsPage() {
 
 		if (filters.dateRange === "today") {
 			filtered = filtered.filter((lead) => {
-				const leadDate = new Date(lead.createdAt);
+				const leadDate = getSafeDate(lead.createdAt);
 				return leadDate >= startOfToday && leadDate <= endOfToday;
 			});
 		} else if (filters.dateRange === "yesterday") {
@@ -126,7 +135,7 @@ export default function LeadsPage() {
 			endOfYesterday.setDate(endOfYesterday.getDate() - 1);
 
 			filtered = filtered.filter((lead) => {
-				const leadDate = new Date(lead.createdAt);
+				const leadDate = getSafeDate(lead.createdAt);
 				return (
 					leadDate >= startOfYesterday && leadDate <= endOfYesterday
 				);
@@ -138,14 +147,14 @@ export default function LeadsPage() {
 			endOfTomorrow.setDate(endOfTomorrow.getDate() + 1);
 
 			filtered = filtered.filter((lead) => {
-				const leadDate = new Date(lead.createdAt);
+				const leadDate = getSafeDate(lead.createdAt);
 				return leadDate >= startOfTomorrow && leadDate <= endOfTomorrow;
 			});
 		} else if (filters.dateRange === "custom") {
 			if (filters.dateFrom) {
 				const fromDate = new Date(filters.dateFrom);
 				filtered = filtered.filter(
-					(lead) => new Date(lead.createdAt) >= fromDate,
+					(lead) => getSafeDate(lead.createdAt) >= fromDate,
 				);
 			}
 
@@ -155,7 +164,7 @@ export default function LeadsPage() {
 				const toDateEnd = new Date(toDate);
 				toDateEnd.setHours(23, 59, 59, 999);
 				filtered = filtered.filter(
-					(lead) => new Date(lead.createdAt) <= toDateEnd,
+					(lead) => getSafeDate(lead.createdAt) <= toDateEnd,
 				);
 			}
 		}

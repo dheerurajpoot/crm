@@ -35,7 +35,10 @@ export async function createUser(uid: string, userData: Omit<User, "uid">) {
 export async function getUser(uid: string) {
 	const docSnap = await getDoc(doc(db, "users", uid));
 	if (docSnap.exists()) {
-		return { id: docSnap.id, ...docSnap.data() } as User & { id: string };
+		return {
+			id: docSnap.id,
+			...convertFirestoreData(docSnap.data()),
+		} as User & { id: string };
 	}
 	return null;
 }
@@ -103,7 +106,10 @@ export async function createOrganization(
 export async function getOrganization(orgId: string) {
 	const docSnap = await getDoc(doc(db, "organizations", orgId));
 	if (docSnap.exists()) {
-		return { id: docSnap.id, ...docSnap.data() } as Organization & {
+		return {
+			id: docSnap.id,
+			...convertFirestoreData(docSnap.data()),
+		} as Organization & {
 			id: string;
 		};
 	}
@@ -156,7 +162,7 @@ export async function getTeamMembers(organizationId: string) {
 	);
 	return querySnapshot.docs.map((doc) => ({
 		userId: doc.id,
-		...doc.data(),
+		...convertFirestoreData(doc.data()),
 	}));
 }
 
@@ -264,7 +270,7 @@ export async function getFormTemplates(organizationId: string) {
 
 	const templates = querySnapshot.docs.map((docSnap) => ({
 		id: docSnap.id,
-		...docSnap.data(),
+		...convertFirestoreData(docSnap.data()),
 	})) as (FormTemplate & { id: string } & { createdAt?: unknown })[];
 
 	templates.sort((a, b) => toMillis(b.createdAt) - toMillis(a.createdAt));
@@ -346,7 +352,7 @@ export async function getLeads(
 	const querySnapshot = await getDocs(q);
 	return querySnapshot.docs.map((doc) => ({
 		id: doc.id,
-		...doc.data(),
+		...convertFirestoreData(doc.data()),
 	})) as (Lead & { id: string })[];
 }
 
