@@ -169,6 +169,13 @@ export default function LeadsPage() {
 			}
 		}
 
+		// Sort by createdAt descending (newest at the top)
+		filtered.sort((a, b) => {
+			const dateA = getSafeDate(a.createdAt).getTime();
+			const dateB = getSafeDate(b.createdAt).getTime();
+			return dateB - dateA;
+		});
+
 		setFilteredLeads(filtered);
 	}, [filters, leads]);
 
