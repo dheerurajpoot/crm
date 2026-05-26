@@ -391,6 +391,24 @@ export async function bulkUpdateLeads(
 	await batch.commit();
 }
 
+export async function bulkDeleteLeads(
+	organizationId: string,
+	leadIds: string[],
+) {
+	const batch = writeBatch(db);
+	leadIds.forEach((leadId) => {
+		const leadRef = doc(
+			db,
+			"organizations",
+			organizationId,
+			"leads",
+			leadId,
+		);
+		batch.delete(leadRef);
+	});
+	await batch.commit();
+}
+
 // ========== Lead Activities (Audit Log) ==========
 export async function createLeadActivity(
 	organizationId: string,
